@@ -111,6 +111,17 @@ def answer_question(question: str, dataset_id: str | None) -> dict:
 
     base_match = "MATCH (d:Dataset {id: $dataset_id})-[:HAS_ROW]->(r:Row)"
 
+    # 0. Column / schema questions ("how many columns", "what columns/fields are there")
+    if re.search(r"\bcolumns?\b", q) or re.search(r"\bfields?\b", q):
+        cypher = "MATCH (d:Dataset {id: $dataset_id}) RETURN d.columns AS columns"
+        result = neo4j_service.run_read(cypher, dataset_id=dataset_id)
+        cols = result[0]["columns"] if result else []
+        if re.search(r"\bhow many\b", q):
+            answer = f"There are {len(cols)} columns: {', '.join(cols)}."
+        else:
+            answer = f"The columns are: {', '.join(cols)}."
+        return {"answer": answer, "cypher": cypher, "result": result, "grounded": True}
+
     # 1. Aggregation: average / sum
     agg_match = re.search(r"\b(average|avg|mean|sum|total)\b", q)
     if agg_match:
