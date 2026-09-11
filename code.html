@@ -1,0 +1,1898 @@
+<!DOCTYPE html>
+<html class="dark h-full" lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>DataFlowAI - Knowledge Graph Copilot & Real-Time Pipeline</title>
+  <meta name="description" content="DataFlowAI Knowledge Graph Copilot - Transform CSV datasets into interactive Neo4j Knowledge Graphs with streaming Kafka pipelines and GraphRAG AI Chat.">
+  
+  <!-- Tailwind CSS v3 with Plugins -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <!-- Fonts: Inter & JetBrains Mono -->
+  <link href="https://fonts.googleapis.com" rel="preconnect">
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  
+  <!-- Tailwind Configuration -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            noir: {
+              950: '#050608',
+              900: '#0a0c10',
+              850: '#111318',
+              800: '#191c22',
+              700: '#252932',
+              600: '#353a45',
+            },
+            silver: {
+              100: '#f4f4f5',
+              200: '#e4e4e7',
+              300: '#d4d4d8',
+              400: '#a1a1aa',
+              500: '#71717a',
+            }
+          },
+          animation: {
+            'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'glow-line': 'flowLight 4s linear infinite',
+            'float': 'float 3s ease-in-out infinite',
+          },
+          keyframes: {
+            flowLight: {
+              '0%': { transform: 'translateX(-100%)' },
+              '100%': { transform: 'translateX(200%)' },
+            },
+            float: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-5px)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Custom Glass & Dynamic Multi-Theme Styles -->
+  <style data-purpose="glassmorphic-styling">
+    /* Theme 1: Default Midnight Dark Noir */
+    body, body.theme-noir {
+      background-color: #050608;
+      color: #f4f4f5;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(255, 255, 255, 0.04) 0px, transparent 45%),
+        radial-gradient(at 100% 0%, rgba(255, 255, 255, 0.03) 0px, transparent 40%),
+        radial-gradient(at 50% 100%, rgba(255, 255, 255, 0.02) 0px, transparent 50%);
+      background-attachment: fixed;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .glass-card {
+      background: rgba(14, 16, 22, 0.72);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.6);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .glass-card:hover {
+      border-color: rgba(255, 255, 255, 0.22);
+      box-shadow: 0 10px 32px -8px rgba(255, 255, 255, 0.08);
+    }
+
+    /* Theme 2: Cyber Neon Cyan */
+    body.theme-cyber {
+      background-color: #030712;
+      color: #f0fdf4;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(6, 182, 212, 0.15) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.12) 0px, transparent 45%),
+        radial-gradient(at 50% 100%, rgba(99, 102, 241, 0.1) 0px, transparent 50%);
+    }
+    body.theme-cyber .glass-card {
+      background: rgba(11, 19, 36, 0.85);
+      border-color: rgba(6, 182, 212, 0.25);
+      box-shadow: 0 4px 24px -1px rgba(6, 182, 212, 0.15);
+    }
+    body.theme-cyber aside, body.theme-cyber header {
+      background-color: rgba(6, 15, 30, 0.95) !important;
+      border-color: rgba(6, 182, 212, 0.2) !important;
+    }
+
+    /* Theme 3: Obsidian Light Pearl (High-Contrast Clean Light Mode) */
+    body.theme-light {
+      background-color: #f1f5f9;
+      color: #0f172a;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.06) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 45%),
+        radial-gradient(at 50% 100%, rgba(203, 213, 225, 0.3) 0px, transparent 50%);
+    }
+
+    body.theme-light .glass-card {
+      background: #ffffff !important;
+      border-color: #cbd5e1 !important;
+      box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.06) !important;
+      color: #0f172a !important;
+    }
+
+    body.theme-light aside, 
+    body.theme-light header {
+      background-color: #ffffff !important;
+      border-color: #e2e8f0 !important;
+      color: #0f172a !important;
+    }
+
+    body.theme-light h1, 
+    body.theme-light h2, 
+    body.theme-light h3, 
+    body.theme-light h4 {
+      color: #0f172a !important;
+    }
+
+    body.theme-light p {
+      color: #334155 !important;
+    }
+
+    body.theme-light .text-white {
+      color: #0f172a !important;
+    }
+
+    body.theme-light .text-zinc-400 {
+      color: #475569 !important;
+    }
+
+    body.theme-light .text-zinc-300 {
+      color: #334155 !important;
+    }
+
+    body.theme-light .text-zinc-200 {
+      color: #1e293b !important;
+    }
+
+    body.theme-light .text-zinc-500 {
+      color: #64748b !important;
+    }
+
+    /* Light Mode Stepper Cards & Inner Containers */
+    body.theme-light .bg-noir-900\/90,
+    body.theme-light .bg-noir-900,
+    body.theme-light .bg-noir-950,
+    body.theme-light .bg-noir-850 {
+      background-color: #f8fafc !important;
+      border-color: #e2e8f0 !important;
+      color: #0f172a !important;
+    }
+
+    body.theme-light .bg-white\/10,
+    body.theme-light .bg-white\/5 {
+      background-color: #e2e8f0 !important;
+      border-color: #cbd5e1 !important;
+      color: #0f172a !important;
+    }
+
+    body.theme-light .border-white\/10,
+    body.theme-light .border-white\/15,
+    body.theme-light .border-white\/20,
+    body.theme-light .border-white\/35 {
+      border-color: #cbd5e1 !important;
+    }
+
+    /* Light Mode Table & Inputs */
+    body.theme-light input, 
+    body.theme-light select {
+      background-color: #ffffff !important;
+      color: #0f172a !important;
+      border-color: #cbd5e1 !important;
+    }
+
+    body.theme-light input::placeholder {
+      color: #94a3b8 !important;
+    }
+
+    body.theme-light tr:hover {
+      background-color: #f1f5f9 !important;
+    }
+
+    /* Light Mode Chatbot Panel */
+    body.theme-light aside[data-purpose="ai-copilot-chat"] {
+      background-color: #ffffff !important;
+      border-color: #e2e8f0 !important;
+    }
+
+    body.theme-light .bg-noir-950\/60,
+    body.theme-light .bg-noir-950\/80,
+    body.theme-light .bg-noir-950\/40,
+    body.theme-light .bg-noir-950\/70,
+    body.theme-light .bg-noir-950\/90 {
+      background-color: #f8fafc !important;
+      border-color: #e2e8f0 !important;
+      color: #0f172a !important;
+    }
+
+    body.theme-light #interactiveGraphCanvas {
+      background-color: #f8fafc !important;
+      border-color: #e2e8f0 !important;
+    }
+
+    /* User Chat Bubble in Light Mode */
+    body.theme-light .bg-gradient-to-b.from-white.to-zinc-200 {
+      background: #0f172a !important;
+      color: #ffffff !important;
+    }
+
+    /* Bot Chat Box in Light Mode */
+    body.theme-light .bg-noir-850 {
+      background-color: #f1f5f9 !important;
+      border-color: #cbd5e1 !important;
+      color: #0f172a !important;
+    }
+
+    body.theme-light code {
+      color: #0f172a !important;
+    }
+
+    /* Light Mode Stepper 5 (Ready Badge) */
+    body.theme-light #step5Card {
+      background: #ffffff !important;
+      border-color: #0f172a !important;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(10, 12, 16, 0.6);
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.16);
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.35);
+    }
+
+    .node-pulse {
+      animation: pulseGlow 2s infinite alternate;
+    }
+    @keyframes pulseGlow {
+      from { filter: drop-shadow(0 0 2px rgba(255,255,255,0.4)); }
+      to { filter: drop-shadow(0 0 10px rgba(255,255,255,0.9)); }
+    }
+
+    .modal-backdrop {
+      background: rgba(5, 6, 8, 0.85);
+      backdrop-filter: blur(12px);
+    }
+  </style>
+</head>
+<body class="h-full font-sans antialiased overflow-hidden flex custom-scrollbar selection:bg-white selection:text-black">
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- BEGIN: Sidebar Navigation -->
+  <aside id="mainSidebar" class="w-64 flex-shrink-0 bg-noir-900/95 border-r border-white/10 flex flex-col justify-between z-30 backdrop-blur-2xl transition-all duration-300">
+    <!-- Top Brand & Nav Menu -->
+    <div class="flex flex-col">
+      <!-- App Brand / Logo -->
+      <div class="p-5 border-b border-white/10 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-b from-white to-zinc-400 text-black shadow-lg shadow-white/10">
+            <i class="fa-solid fa-circle-nodes text-black text-lg"></i>
+            <span class="absolute -bottom-1 -right-1 flex h-3 w-3">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+            </span>
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <h1 class="text-base font-bold tracking-tight text-white">DataFlow<span class="text-zinc-400 font-light">AI</span></h1>
+              <span class="text-[10px] bg-white/10 text-white border border-white/20 px-1.5 py-0.2 rounded font-mono font-medium">v2.4</span>
+            </div>
+            <p class="text-[10px] text-zinc-400 font-mono tracking-tight flex items-center gap-1">
+              CSV <span class="text-white">→</span> Kafka <span class="text-zinc-400">→</span> Neo4j
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="p-3 space-y-1 text-sm font-medium">
+        <a id="navDashboard" class="sidebar-nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-white/10 text-white border border-white/20 shadow-sm shadow-white/5 group transition-all cursor-pointer" onclick="setActiveNav('dashboard'); window.scrollTo({top: 0, behavior: 'smooth'})">
+          <i class="fa-solid fa-house-chimney text-white text-sm transition-transform group-hover:scale-110"></i>
+          <span class="font-medium tracking-tight">Dashboard</span>
+          <span class="ml-auto w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_#ffffff]"></span>
+        </a>
+        <a id="navUpload" class="sidebar-nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors group cursor-pointer" onclick="setActiveNav('upload'); window.scrollTo({top: 0, behavior: 'smooth'})">
+          <i class="fa-solid fa-cloud-arrow-up text-sm transition-transform group-hover:scale-110 group-hover:text-white"></i>
+          <span>Upload CSV</span>
+          <span class="ml-auto text-[10px] bg-noir-850 text-zinc-400 px-1.5 py-0.5 rounded border border-white/10">Auto-ETL</span>
+        </a>
+        <a id="navIngestion" class="sidebar-nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors group cursor-pointer" onclick="setActiveNav('ingestion'); window.scrollTo({top: 0, behavior: 'smooth'})">
+          <i class="fa-solid fa-wave-pulse text-sm transition-transform group-hover:scale-110 group-hover:text-white"></i>
+          <span>Ingestion Status</span>
+          <span class="ml-auto flex h-2 w-2 rounded-full bg-white shadow-[0_0_6px_#ffffff]"></span>
+        </a>
+        <a id="navGraph" class="sidebar-nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors group cursor-pointer" onclick="setActiveNav('graph'); window.scrollTo({top: 0, behavior: 'smooth'})">
+          <i class="fa-solid fa-diagram-project text-sm transition-transform group-hover:scale-110 group-hover:text-white"></i>
+          <span>Graph Explorer</span>
+        </a>
+        <a id="navChatbot" class="sidebar-nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors group cursor-pointer" onclick="setActiveNav('chatbot'); window.scrollTo({top: 0, behavior: 'smooth'})">
+          <i class="fa-solid fa-robot text-sm transition-transform group-hover:scale-110 group-hover:text-white"></i>
+          <span>Chatbot (GraphRAG)</span>
+        </a>
+        <a id="navLogs" class="sidebar-nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors group cursor-pointer" onclick="setActiveNav('logs'); window.scrollTo({top: 0, behavior: 'smooth'})">
+          <i class="fa-solid fa-terminal text-sm transition-transform group-hover:scale-110 group-hover:text-white"></i>
+          <span>Execution Logs</span>
+        </a>
+        <a id="navSettings" class="sidebar-nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors group cursor-pointer" onclick="setActiveNav('settings'); window.scrollTo({top: 0, behavior: 'smooth'})">
+          <i class="fa-solid fa-sliders text-sm transition-transform group-hover:scale-110"></i>
+          <span>Settings</span>
+        </a>
+      </nav>
+    </div>
+
+    <!-- Bottom Sidebar Widget: Tech Architecture Teaser -->
+    <div class="p-3 border-t border-white/10">
+      <div class="p-3.5 rounded-xl bg-gradient-to-b from-noir-850 to-noir-900 border border-white/10 relative overflow-hidden group">
+        <div class="absolute -right-6 -bottom-6 w-20 h-20 bg-white/5 rounded-full blur-xl group-hover:bg-white/10 transition-all"></div>
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-[10px] font-mono tracking-wider uppercase text-zinc-300 font-semibold flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span> Live Pipeline
+          </span>
+          <span id="liveLatencyBadge" class="text-[11px] text-zinc-400 font-mono">14ms latency</span>
+        </div>
+        <p class="text-xs text-zinc-300 font-medium leading-relaxed mb-3">From Spreadsheets to Smart Conversations</p>
+        <div class="h-10 w-full flex items-center justify-center gap-3 bg-noir-950/80 rounded-lg border border-white/10 p-2">
+          <div class="w-2.5 h-2.5 rounded-full bg-white shadow-[0_0_6px_#ffffff]"></div>
+          <div class="w-6 h-[1px] bg-zinc-700 relative overflow-hidden">
+            <div class="w-2 h-[1px] bg-white animate-[flowLight_1.5s_linear_infinite]"></div>
+          </div>
+          <div class="w-2.5 h-2.5 rounded-full bg-zinc-400 shadow-[0_0_6px_rgba(255,255,255,0.4)]"></div>
+          <div class="w-6 h-[1px] bg-zinc-700"></div>
+          <div class="w-2.5 h-2.5 rounded-full bg-zinc-200 shadow-[0_0_6px_rgba(255,255,255,0.7)]"></div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <!-- END: Sidebar Navigation -->
+
+  <!-- BEGIN: Main Dashboard Body & Chatbot Panel -->
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden bg-noir-950/70">
+    <!-- BEGIN: Top Bar Navigation -->
+    <header class="h-16 border-b border-white/10 bg-noir-900/70 backdrop-blur-md flex items-center justify-between px-6 z-10 flex-shrink-0" data-purpose="dashboard-topbar">
+      <!-- Breadcrumb & Greeting intro -->
+      <div class="flex items-center gap-3">
+        <button id="sidebarToggle" class="lg:hidden text-zinc-400 hover:text-white p-1 rounded-lg border border-white/10" onclick="toggleSidebar()">
+          <i class="fa-solid fa-bars text-sm"></i>
+        </button>
+        <span class="text-xs font-mono text-zinc-400 bg-noir-850 px-2 py-1 rounded border border-white/10">PROJECT</span>
+        <i class="fa-solid fa-chevron-right text-[10px] text-zinc-600"></i>
+        <h2 class="text-sm font-semibold text-white">Customer Analytics KG</h2>
+        <span class="flex items-center gap-1.5 ml-3 px-2 py-0.5 rounded-full bg-white/5 text-zinc-200 border border-white/20 text-[11px] font-medium">
+          <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+          Kafka Active (Partition: 3)
+        </span>
+      </div>
+
+      <!-- Right Header Actions: Status, Theme Toggle, Notifications, Profile -->
+      <div class="flex items-center gap-3">
+        <div class="hidden sm:flex items-center gap-2 bg-noir-850 border border-white/15 text-zinc-200 text-xs px-3 py-1.5 rounded-full">
+          <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+          <span class="font-medium tracking-wide">All Systems Online</span>
+        </div>
+        <div class="flex items-center gap-1 bg-noir-850 p-1 rounded-xl border border-white/10">
+          <button id="themeToggleBtn" class="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-colors" title="Switch Theme (Noir / Cyber / Light)" onclick="toggleThemeMode()">
+            <i class="fa-solid fa-moon text-xs text-white"></i>
+          </button>
+          <button class="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-colors relative" title="Alerts" onclick="showToast('No active system alerts. All pipelines operational.', 'info')">
+            <i class="fa-regular fa-bell text-xs"></i>
+            <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-white shadow-[0_0_6px_#ffffff]"></span>
+          </button>
+        </div>
+        <div class="flex items-center gap-2.5 pl-2">
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-b from-white to-zinc-400 flex items-center justify-center text-xs font-bold text-black shadow-md shadow-white/10 border border-white/40 font-mono">
+            S
+          </div>
+          <div class="hidden md:block text-left">
+            <p class="text-xs font-semibold text-white leading-tight tracking-tight">Santhosh</p>
+            <p class="text-[10px] font-mono text-zinc-400 leading-tight">Lead Data Engineer</p>
+          </div>
+        </div>
+      </div>
+    </header>
+    <!-- END: Top Bar Navigation -->
+
+    <!-- BEGIN: Dashboard & Chat Split Layout -->
+    <div class="flex-1 flex overflow-hidden">
+      <!-- Central Dashboard Content Area -->
+      <main class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+        <!-- View 1: Main Dashboard Page -->
+        <div id="viewDashboard" class="view-page space-y-6">
+          <!-- Welcome Hero Headline -->
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+                Good Evening, Santhosh! <span class="text-2xl grayscale contrast-200">👋</span>
+              </h1>
+              <p class="text-xs sm:text-sm text-zinc-400 mt-1">
+                Upload your CSV, let the automated pipeline construct the knowledge graph, then chat in natural language.
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-noir-850 hover:bg-noir-800 text-zinc-200 text-xs font-medium border border-white/15 transition-all tracking-tight hover:border-white/30" onclick="triggerPipelineSync()">
+                <i id="syncSpinIcon" class="fa-solid fa-arrows-rotate text-white"></i> Sync Pipeline
+              </button>
+              <button class="flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-semibold shadow-lg shadow-white/10 transition-all tracking-tight hover:shadow-white/20" onclick="openUploadModal()">
+                <i class="fa-solid fa-file-arrow-up"></i> Ingest New CSV
+              </button>
+            </div>
+          </div>
+
+          <!-- BEGIN: KPI Executive Metric Cards -->
+          <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-purpose="kpi-metrics">
+            <!-- KPI 1: Total Rows -->
+            <div class="glass-card rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group">
+              <div class="flex items-start justify-between">
+                <div>
+                  <p class="text-xs font-mono uppercase tracking-wider text-zinc-400">Total Rows</p>
+                  <h3 id="kpiTotalRows" class="text-2xl font-bold text-white mt-1 group-hover:text-zinc-200 transition-colors tracking-tight font-sans">1,248</h3>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-white/5 text-white flex items-center justify-center border border-white/10">
+                  <i class="fa-solid fa-table-cells text-base"></i>
+                </div>
+              </div>
+              <div class="mt-3 flex items-center gap-2 text-xs font-mono">
+                <span class="text-white flex items-center gap-1 font-medium">
+                  <i class="fa-solid fa-arrow-trend-up text-white"></i> 100% Loaded
+                </span>
+                <span class="text-zinc-500">• 0 dropped</span>
+              </div>
+            </div>
+            <!-- KPI 2: Graph Nodes -->
+            <div class="glass-card rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group">
+              <div class="flex items-start justify-between">
+                <div>
+                  <p class="text-xs font-mono uppercase tracking-wider text-zinc-400">Graph Nodes</p>
+                  <h3 id="kpiGraphNodes" class="text-2xl font-bold text-white mt-1 group-hover:text-zinc-200 transition-colors">1,248</h3>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-white/5 text-white flex items-center justify-center border border-white/10">
+                  <i class="fa-solid fa-shapes text-base"></i>
+                </div>
+              </div>
+              <div class="mt-3 flex items-center gap-2 text-xs font-mono text-zinc-400">
+                <span class="text-zinc-200 font-medium">Customer, Orders, Products</span>
+              </div>
+            </div>
+            <!-- KPI 3: Relationships -->
+            <div class="glass-card rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group">
+              <div class="flex items-start justify-between">
+                <div>
+                  <p class="text-xs font-mono uppercase tracking-wider text-zinc-400">Relationships</p>
+                  <h3 id="kpiRelationships" class="text-2xl font-bold text-white mt-1 group-hover:text-zinc-200 transition-colors">3,842</h3>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-white/5 text-white flex items-center justify-center border border-white/10">
+                  <i class="fa-solid fa-link text-base"></i>
+                </div>
+              </div>
+              <div class="mt-3 flex items-center gap-2 text-xs font-mono text-zinc-400">
+                <span class="text-zinc-200 font-medium">PLACED_BY, INCLUDES, HAS_ROW</span>
+              </div>
+            </div>
+            <!-- KPI 4: Processing Time -->
+            <div class="glass-card rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden group">
+              <div class="flex items-start justify-between">
+                <div>
+                  <p class="text-xs font-mono uppercase tracking-wider text-zinc-400">Processing Time</p>
+                  <h3 id="kpiProcTime" class="text-2xl font-bold text-white mt-1 group-hover:text-zinc-200 transition-colors">2m 18s</h3>
+                </div>
+                <div class="w-10 h-10 rounded-xl bg-white/5 text-white flex items-center justify-center border border-white/10">
+                  <i class="fa-solid fa-stopwatch text-base"></i>
+                </div>
+              </div>
+              <div class="mt-3 flex items-center gap-2 text-xs font-mono">
+                <span class="text-white font-medium">Benchmark: Fast</span>
+                <span class="text-zinc-500">• Ingest v2 engine</span>
+              </div>
+            </div>
+          </section>
+          <!-- END: KPI Executive Metric Cards -->
+
+          <!-- BEGIN: Middle Dual Section (Dataset Sample & Interactive Graph View) -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Latest Dataset Preview Table (7 cols) -->
+            <section class="lg:col-span-7 glass-card rounded-2xl p-5 flex flex-col" data-purpose="dataset-preview">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-white/10 gap-3">
+                <div class="flex items-center gap-2.5">
+                  <div class="p-2 rounded-xl bg-white/5 text-white border border-white/10">
+                    <i class="fa-solid fa-file-lines text-sm"></i>
+                  </div>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <h3 id="tableTitle" class="text-sm font-semibold text-white tracking-tight">customers_orders.csv</h3>
+                      <span class="text-[10px] font-mono text-white bg-white/10 border border-white/20 px-2 py-0.5 rounded-full font-medium">Completed</span>
+                    </div>
+                    <p id="tableSubtitle" class="text-[11px] text-zinc-400 font-mono">1,248 rows • 456 KB • 2026-09-11 10:20:14</p>
+                  </div>
+                </div>
+                
+                <!-- Search & Group Filter Controls -->
+                <div class="flex items-center gap-2">
+                  <div class="relative flex items-center">
+                    <i class="fa-solid fa-magnifying-glass absolute left-2.5 text-zinc-500 text-xs"></i>
+                    <input id="tableSearchInput" type="text" placeholder="Search rows..." class="bg-noir-950 text-xs text-white placeholder-zinc-500 rounded-lg pl-8 pr-3 py-1.5 border border-white/15 focus:border-white focus:ring-1 focus:ring-white transition-all w-36 sm:w-44 font-mono" oninput="handleTableFilter()">
+                  </div>
+                  <select id="groupFilterSelect" class="bg-noir-950 text-xs text-zinc-300 rounded-lg px-2.5 py-1.5 border border-white/15 focus:border-white font-mono" onchange="handleTableFilter()">
+                    <option value="ALL">All Groups</option>
+                    <option value="Billing">Billing</option>
+                    <option value="HR">HR</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Engineering">Engineering</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Scrollable Table -->
+              <div class="overflow-x-auto custom-scrollbar mt-3 flex-1 min-h-[220px]">
+                <table class="w-full text-left text-xs">
+                  <thead>
+                    <tr class="border-b border-white/10 text-zinc-400 font-mono text-[11px]">
+                      <th class="py-2.5 px-3">row_index</th>
+                      <th class="py-2.5 px-3">customer_id</th>
+                      <th class="py-2.5 px-3">customer_name</th>
+                      <th class="py-2.5 px-3">order_id</th>
+                      <th class="py-2.5 px-3">group</th>
+                      <th class="py-2.5 px-3 text-right">status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="datasetTableBody" class="divide-y divide-white/5 font-mono text-zinc-300">
+                    <!-- Dynamically Rendered -->
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Table Pagination -->
+              <div class="pt-3 mt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-zinc-400 font-mono">
+                <span id="tablePaginationInfo">Showing 1-5 of 1,248 rows</span>
+                <div class="flex items-center gap-1 text-zinc-300">
+                  <button id="btnPrevPage" class="px-2 py-0.5 bg-noir-850 rounded border border-white/10 hover:bg-noir-800 text-zinc-300 disabled:opacity-40" onclick="changePage(-1)">Prev</button>
+                  <span id="currentPageNum" class="px-2 text-white font-bold">1</span>
+                  <button id="btnNextPage" class="px-2 py-0.5 bg-noir-850 rounded border border-white/10 hover:bg-noir-800 text-zinc-300 disabled:opacity-40" onclick="changePage(1)">Next</button>
+                </div>
+              </div>
+            </section>
+
+            <!-- Graph View (Neo4j Force Directed Topology Visualizer) (5 cols) -->
+            <section id="graphCanvasSection" class="lg:col-span-5 glass-card rounded-2xl p-5 flex flex-col relative overflow-hidden" data-purpose="graph-canvas-view">
+              <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                <div class="flex items-center gap-2">
+                  <div class="p-1.5 rounded-lg bg-white/5 text-white border border-white/15">
+                    <i class="fa-solid fa-project-diagram text-xs"></i>
+                  </div>
+                  <h3 class="text-sm font-semibold text-white tracking-tight">Graph View (Neo4j)</h3>
+                </div>
+                <button class="text-xs font-mono text-zinc-300 hover:text-white flex items-center gap-1 transition-colors hover:underline" onclick="openNeo4jModal()">
+                  Open in Neo4j <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                </button>
+              </div>
+
+              <!-- Interactive Graph Canvas -->
+              <div id="interactiveGraphCanvas" class="relative flex-1 min-h-[260px] bg-noir-950/90 rounded-xl mt-3 border border-white/10 flex items-center justify-center overflow-hidden select-none cursor-grab">
+                <div class="absolute inset-0 opacity-15 pointer-events-none" style="background-image: radial-gradient(rgba(255,255,255,0.4) 1px, transparent 1px); background-size: 16px 16px;"></div>
+                
+                <svg id="neo4jSvg" class="w-full h-full absolute inset-0" viewBox="0 0 400 260" xmlns="http://www.w3.org/2000/svg">
+                  <g id="svgGraphGroup" style="transform-origin: 200px 130px; transition: transform 0.15s cubic-bezier(0.2, 0, 0.2, 1);">
+                    <!-- Links -->
+                    <line opacity="0.6" stroke="#ffffff" stroke-dasharray="3 3" stroke-width="1.6" x1="160" y1="130" x2="260" y2="70"></line>
+                    <text fill="#a1a1aa" font-family="JetBrains Mono" font-size="8.5" transform="rotate(-30 200 95)" x="200" y="93">PLACED_BY</text>
+
+                    <line opacity="0.45" stroke="#a1a1aa" stroke-dasharray="2 2" stroke-width="1.5" x1="260" y1="70" x2="330" y2="135"></line>
+                    <text fill="#a1a1aa" font-family="JetBrains Mono" font-size="8.5" transform="rotate(40 280 100)" x="280" y="100">CONTAINS</text>
+
+                    <line opacity="0.45" stroke="#a1a1aa" stroke-dasharray="2 2" stroke-width="1.5" x1="160" y1="130" x2="290" y2="200"></line>
+                    <text fill="#a1a1aa" font-family="JetBrains Mono" font-size="8.5" transform="rotate(27 220 175)" x="220" y="175">INCLUDES</text>
+
+                    <line opacity="0.4" stroke="#71717a" stroke-dasharray="3 2" stroke-width="1.5" x1="160" y1="130" x2="160" y2="215"></line>
+                    <text fill="#71717a" font-family="JetBrains Mono" font-size="8.5" x="165" y="180">HAS_ROW</text>
+
+                    <!-- Nodes -->
+                    <g class="cursor-pointer group node-element transition-all duration-200" data-node-label="Customer" onclick="inspectNode('Customer', 1248, 'Entity containing demographic details (Name, City, Segment)')">
+                      <circle class="transition-all hover:scale-110 node-pulse" cx="160" cy="130" fill="#0c0d12" r="32" stroke="#ffffff" stroke-width="2.5"></circle>
+                      <circle class="animate-spin" cx="160" cy="130" opacity="0.3" r="38" stroke="#ffffff" stroke-dasharray="4 2" stroke-width="1" style="animation-duration: 12s; transform-origin: 160px 130px;"></circle>
+                      <text fill="#ffffff" font-family="Inter" font-size="10" font-weight="700" text-anchor="middle" x="160" y="126">Customer</text>
+                      <text fill="#a1a1aa" font-family="JetBrains Mono" font-size="9" text-anchor="middle" x="160" y="140">(1,248)</text>
+                    </g>
+
+                    <g class="cursor-pointer group node-element transition-all duration-200" data-node-label="Order" onclick="inspectNode('Order', 420, 'Purchasing events with totals, dates, and order IDs')">
+                      <circle cx="260" cy="70" fill="#181a20" r="24" stroke="#d4d4d8" stroke-width="1.8" class="hover:stroke-white transition-colors"></circle>
+                      <text fill="#f4f4f5" font-size="9" font-weight="600" text-anchor="middle" x="260" y="68">Order</text>
+                      <text fill="#a1a1aa" font-family="JetBrains Mono" font-size="8" text-anchor="middle" x="260" y="79">(420)</text>
+                    </g>
+
+                    <g class="cursor-pointer group node-element transition-all duration-200" data-node-label="Product" onclick="inspectNode('Product', 180, 'SKU catalog items with categories and unit pricing')">
+                      <circle cx="330" cy="135" fill="#14161c" r="23" stroke="#a1a1aa" stroke-width="1.8" class="hover:stroke-white transition-colors"></circle>
+                      <text fill="#f4f4f5" font-size="9" font-weight="600" text-anchor="middle" x="330" y="133">Product</text>
+                      <text fill="#71717a" font-family="JetBrains Mono" font-size="8" text-anchor="middle" x="330" y="144">(180)</text>
+                    </g>
+
+                    <g class="cursor-pointer group node-element transition-all duration-200" data-node-label="Group" onclick="inspectNode('Group', 5, 'Organizational departments (Billing, HR, Finance, Eng)')">
+                      <circle cx="290" cy="200" fill="#191c24" r="22" stroke="#d4d4d8" stroke-width="1.8" class="hover:stroke-white transition-colors"></circle>
+                      <text fill="#f4f4f5" font-size="9" font-weight="600" text-anchor="middle" x="290" y="198">Group</text>
+                      <text fill="#a1a1aa" font-family="JetBrains Mono" font-size="8" text-anchor="middle" x="290" y="209">(5)</text>
+                    </g>
+
+                    <g class="cursor-pointer group node-element transition-all duration-200" data-node-label="Row" onclick="inspectNode('Row', 1248, 'Raw tabular CSV entries mapped into triple graph format')">
+                      <circle cx="160" cy="215" fill="#14161c" r="20" stroke="#71717a" stroke-width="1.8" class="hover:stroke-white transition-colors"></circle>
+                      <text fill="#e4e4e7" font-size="9" font-weight="600" text-anchor="middle" x="160" y="213">Row</text>
+                      <text fill="#71717a" font-family="JetBrains Mono" font-size="7.5" text-anchor="middle" x="160" y="224">(1,248)</text>
+                    </g>
+                  </g>
+                </svg>
+
+                <!-- Zoom Controls overlay -->
+                <div class="absolute bottom-3 left-3 z-20 flex items-center gap-1 bg-noir-900/95 border border-white/15 rounded-lg p-1 backdrop-blur-md shadow-lg pointer-events-auto">
+                  <button class="w-7 h-7 rounded flex items-center justify-center text-zinc-300 hover:text-white hover:bg-white/15 text-xs transition-colors" title="Zoom In (+)" onclick="zoomGraph(1.25, event)"><i class="fa-solid fa-plus pointer-events-none"></i></button>
+                  <button class="w-7 h-7 rounded flex items-center justify-center text-zinc-300 hover:text-white hover:bg-white/15 text-xs transition-colors" title="Zoom Out (-)" onclick="zoomGraph(0.8, event)"><i class="fa-solid fa-minus pointer-events-none"></i></button>
+                  <button class="w-7 h-7 rounded flex items-center justify-center text-zinc-300 hover:text-white hover:bg-white/15 text-xs transition-colors" title="Reset Fit" onclick="resetGraphZoom(event)"><i class="fa-solid fa-compress pointer-events-none"></i></button>
+                  <span id="zoomLevelText" class="px-1.5 py-0.5 text-[10px] font-mono text-zinc-300 font-semibold border-l border-white/10 ml-0.5">100%</span>
+                </div>
+
+                <!-- Node legend filters -->
+                <div class="absolute top-3 right-3 z-20 flex flex-col gap-1 text-[10px] font-mono pointer-events-auto">
+                  <button data-legend-for="Customer" onclick="filterGraphNode('Customer', event)" class="legend-btn flex items-center gap-1.5 text-white bg-noir-900/90 px-2 py-0.5 rounded border border-white/20 font-medium shadow hover:bg-white/10 transition-all cursor-pointer">
+                    <span class="w-1.5 h-1.5 rounded-full bg-white"></span> Customer
+                  </button>
+                  <button data-legend-for="Order" onclick="filterGraphNode('Order', event)" class="legend-btn flex items-center gap-1.5 text-zinc-300 bg-noir-900/90 px-2 py-0.5 rounded border border-white/15 font-medium shadow hover:bg-white/10 transition-all cursor-pointer">
+                    <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span> Order
+                  </button>
+                  <button data-legend-for="Product" onclick="filterGraphNode('Product', event)" class="legend-btn flex items-center gap-1.5 text-zinc-300 bg-noir-900/90 px-2 py-0.5 rounded border border-white/15 font-medium shadow hover:bg-white/10 transition-all cursor-pointer">
+                    <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span> Product
+                  </button>
+                  <button data-legend-for="Group" onclick="filterGraphNode('Group', event)" class="legend-btn flex items-center gap-1.5 text-zinc-300 bg-noir-900/90 px-2 py-0.5 rounded border border-white/15 font-medium shadow hover:bg-white/10 transition-all cursor-pointer">
+                    <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span> Group
+                  </button>
+                  <button data-legend-for="Row" onclick="filterGraphNode('Row', event)" class="legend-btn flex items-center gap-1.5 text-zinc-300 bg-noir-900/90 px-2 py-0.5 rounded border border-white/15 font-medium shadow hover:bg-white/10 transition-all cursor-pointer">
+                    <span class="w-1.5 h-1.5 rounded-full bg-zinc-500"></span> Row
+                  </button>
+                </div>
+              </div>
+            </section>
+          </div>
+          <!-- END: Middle Dual Section -->
+
+          <!-- BEGIN: System Telemetry & Quick Activity Row -->
+          <section class="grid grid-cols-1 md:grid-cols-3 gap-4" data-purpose="system-telemetry-strip">
+            <div class="glass-card rounded-xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <i class="fa-solid fa-heart-pulse text-white text-xs"></i>
+                  <h4 class="text-xs font-semibold text-white uppercase tracking-wider font-mono">System Health</h4>
+                </div>
+                <span class="text-[10px] font-mono bg-white/10 text-white border border-white/20 px-2 py-0.5 rounded-full font-medium">Healthy</span>
+              </div>
+              <div class="space-y-2 text-xs font-mono">
+                <div class="flex items-center justify-between text-zinc-300">
+                  <span class="flex items-center gap-2"><i class="fa-solid fa-check text-white text-[10px]"></i> Kafka Stream</span>
+                  <span class="text-white text-[11px] font-medium">Connected</span>
+                </div>
+                <div class="flex items-center justify-between text-zinc-300">
+                  <span class="flex items-center gap-2"><i class="fa-solid fa-check text-white text-[10px]"></i> Neo4j Graph DB</span>
+                  <span class="text-white text-[11px] font-medium">Connected</span>
+                </div>
+                <div class="flex items-center justify-between text-zinc-300">
+                  <span class="flex items-center gap-2"><i class="fa-solid fa-check text-white text-[10px]"></i> AI Model API</span>
+                  <span class="text-white text-[11px] font-medium">Active</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="glass-card rounded-xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <i class="fa-solid fa-clock-rotate-left text-zinc-300 text-xs"></i>
+                  <h4 class="text-xs font-semibold text-white uppercase tracking-wider font-mono">Recent Activity</h4>
+                </div>
+                <a class="text-[10px] font-mono text-zinc-300 hover:text-white hover:underline cursor-pointer" onclick="setActiveNav('logs'); openLogsModal()">View Logs →</a>
+              </div>
+              <div class="space-y-2 text-xs font-mono text-zinc-300">
+                <div class="flex items-center justify-between">
+                  <span class="truncate flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-white"></span> CSV Uploaded</span>
+                  <span class="text-zinc-500 text-[10px]">10:12 AM</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="truncate flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span> 1,248 Kafka messages</span>
+                  <span class="text-zinc-500 text-[10px]">10:13 AM</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="truncate flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-zinc-200"></span> Neo4j Index Built</span>
+                  <span class="text-zinc-500 text-[10px]">10:21 AM</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="glass-card rounded-xl p-4 flex flex-col justify-between">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <i class="fa-solid fa-chart-simple text-zinc-300 text-xs"></i>
+                  <h4 class="text-xs font-semibold text-white uppercase tracking-wider font-mono">Quick Stats</h4>
+                </div>
+                <span class="text-[10px] font-mono text-zinc-400">Throughput</span>
+              </div>
+              <div class="grid grid-cols-3 gap-2 my-2 text-center font-mono">
+                <div class="bg-noir-950/70 p-1.5 rounded border border-white/10">
+                  <p id="statTotalRows" class="text-xs font-bold text-white">1,248</p>
+                  <p class="text-[9px] text-zinc-400">Total Rows</p>
+                </div>
+                <div class="bg-noir-950/70 p-1.5 rounded border border-white/10">
+                  <p class="text-xs font-bold text-white">4</p>
+                  <p class="text-[9px] text-zinc-400">Labels</p>
+                </div>
+                <div class="bg-noir-950/70 p-1.5 rounded border border-white/10">
+                  <p class="text-xs font-bold text-zinc-200">7</p>
+                  <p class="text-[9px] text-zinc-400">Rel Types</p>
+                </div>
+              </div>
+              <div class="h-6 w-full">
+                <svg class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 25">
+                  <path d="M0,20 L15,18 L30,12 L45,15 L60,8 L75,11 L90,3 L100,5 L100,25 L0,25 Z" fill="rgba(255, 255, 255, 0.08)"></path>
+                  <path d="M0,20 L15,18 L30,12 L45,15 L60,8 L75,11 L90,3 L100,5" fill="none" stroke="#ffffff" stroke-width="1.5"></path>
+                </svg>
+              </div>
+            </div>
+          </section>
+          <!-- END: System Telemetry Strip -->
+        </div>
+
+        <!-- View 2: Upload CSV Page -->
+        <div id="viewUpload" class="view-page hidden space-y-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                <i class="fa-solid fa-cloud-arrow-up text-white"></i> CSV Data Ingestion Workbench
+              </h2>
+              <p class="text-xs text-zinc-400 font-mono mt-0.5">Automated Kafka Producer + Neo4j GraphRAG Indexer</p>
+            </div>
+            <button class="px-4 py-2 rounded-xl bg-white text-black font-semibold text-xs shadow-lg hover:bg-zinc-200 flex items-center gap-2" onclick="triggerPipelineSync()">
+              <i class="fa-solid fa-play"></i> Run Ingestion ETL
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-7 glass-card rounded-2xl p-6 space-y-5">
+              <h3 class="text-sm font-bold text-white font-mono uppercase tracking-wider">1. Select or Drag & Drop Dataset</h3>
+              <div id="viewDropZone" class="border-2 border-dashed border-white/20 hover:border-white/50 rounded-xl p-10 text-center cursor-pointer bg-noir-950/60 transition-all" onclick="document.getElementById('csvFileInput').click()">
+                <i class="fa-solid fa-file-csv text-4xl text-white mb-3"></i>
+                <p class="text-sm font-semibold text-white">Drop your CSV file here or click to browse</p>
+                <p class="text-xs text-zinc-400 font-mono mt-1">Supports files up to 50MB (Customers, Orders, Transactions)</p>
+              </div>
+
+              <div>
+                <p class="text-xs font-mono uppercase text-zinc-400 mb-2">Preset Sample Datasets Gallery:</p>
+                <div class="grid grid-cols-2 gap-3 font-mono text-xs">
+                  <button class="p-3.5 rounded-xl bg-noir-950 hover:bg-noir-850 border border-white/10 text-left text-zinc-200 hover:border-white/30 transition-all flex items-center justify-between" onclick="loadPresetDataset('customers_orders.csv', 1248, '456 KB')">
+                    <div>
+                      <p class="text-white font-bold">customers_orders.csv</p>
+                      <p class="text-[10px] text-zinc-400">Demographic & Order triples</p>
+                    </div>
+                    <span class="text-[10px] bg-white/10 px-2 py-0.5 rounded text-white font-bold">1,248 rows</span>
+                  </button>
+                  <button class="p-3.5 rounded-xl bg-noir-950 hover:bg-noir-850 border border-white/10 text-left text-zinc-200 hover:border-white/30 transition-all flex items-center justify-between" onclick="loadPresetDataset('sales_q3.csv', 4820, '1.2 MB')">
+                    <div>
+                      <p class="text-white font-bold">sales_q3.csv</p>
+                      <p class="text-[10px] text-zinc-400">Quarterly financial records</p>
+                    </div>
+                    <span class="text-[10px] bg-white/10 px-2 py-0.5 rounded text-white font-bold">4,820 rows</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="lg:col-span-5 glass-card rounded-2xl p-6 space-y-4 font-mono text-xs">
+              <h3 class="text-sm font-bold text-white uppercase tracking-wider">2. Ingestion Target Parameters</h3>
+              <div class="bg-noir-950 p-4 rounded-xl border border-white/10 space-y-3">
+                <div>
+                  <label class="text-[10px] text-zinc-400 uppercase">Kafka Target Topic</label>
+                  <input type="text" value="ingest-stream-v2" class="w-full bg-noir-900 border border-white/15 text-white p-2 rounded-lg mt-1 font-mono text-xs">
+                </div>
+                <div>
+                  <label class="text-[10px] text-zinc-400 uppercase">Graph DB Target</label>
+                  <input type="text" value="neo4j+s://bolt:7687" class="w-full bg-noir-900 border border-white/15 text-white p-2 rounded-lg mt-1 font-mono text-xs">
+                </div>
+                <div>
+                  <label class="text-[10px] text-zinc-400 uppercase">Vector Embedding Model</label>
+                  <input type="text" value="text-embedding-3-small (OpenAI)" class="w-full bg-noir-900 border border-white/15 text-white p-2 rounded-lg mt-1 font-mono text-xs">
+                </div>
+              </div>
+              <button class="w-full py-3 rounded-xl bg-white text-black font-bold text-xs shadow-lg hover:bg-zinc-200" onclick="triggerPipelineSync()">
+                Start Kafka Ingestion Pipeline
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- View 3: Ingestion Status Page -->
+        <div id="viewIngestion" class="view-page hidden space-y-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                <i class="fa-solid fa-wave-pulse text-white"></i> Live Kafka ETL Ingestion Pipeline Monitor
+              </h2>
+              <p class="text-xs text-zinc-400 font-mono mt-0.5">Real-time message throughput monitors & node generation stats</p>
+            </div>
+            <button class="px-4 py-2 rounded-xl bg-noir-850 text-white font-medium text-xs border border-white/15 hover:bg-noir-800" onclick="triggerPipelineSync()">
+              <i class="fa-solid fa-arrows-rotate"></i> Re-Sync Pipeline
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 font-mono">
+            <div class="glass-card rounded-2xl p-4">
+              <p class="text-[10px] uppercase text-zinc-400">Stream Throughput</p>
+              <p class="text-2xl font-bold text-white mt-1">1,248 msg/s</p>
+              <span class="text-[10px] text-emerald-400">✓ Kafka Broker Active</span>
+            </div>
+            <div class="glass-card rounded-2xl p-4">
+              <p class="text-[10px] uppercase text-zinc-400">Generated Triples</p>
+              <p class="text-2xl font-bold text-white mt-1">3,842 edges</p>
+              <span class="text-[10px] text-zinc-400">PLACED_BY, INCLUDES</span>
+            </div>
+            <div class="glass-card rounded-2xl p-4">
+              <p class="text-[10px] uppercase text-zinc-400">Parser Error Rate</p>
+              <p class="text-2xl font-bold text-white mt-1">0.00%</p>
+              <span class="text-[10px] text-emerald-400">0 dropped records</span>
+            </div>
+            <div class="glass-card rounded-2xl p-4">
+              <p class="text-[10px] uppercase text-zinc-400">Pipeline Latency</p>
+              <p class="text-2xl font-bold text-white mt-1">42 ms</p>
+              <span class="text-[10px] text-zinc-400">Benchmark: Fast</span>
+            </div>
+          </div>
+
+          <div class="glass-card rounded-2xl p-6 font-mono text-xs space-y-4">
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Live Kafka Message Stream Log Feed</h3>
+            <div class="bg-noir-950 p-4 rounded-xl border border-white/10 space-y-2 max-h-72 overflow-y-auto custom-scrollbar text-[11px] text-zinc-300">
+              <p><span class="text-zinc-500">[10:20:01]</span> <span class="text-emerald-400 font-bold">[PRODUCER]</span> Partition 0: Published batch offset 0..250 (Topic: ingest-stream)</p>
+              <p><span class="text-zinc-500">[10:20:02]</span> <span class="text-white font-bold">[TRANSFORM]</span> Triple extraction: (Customer {id: 'C001'}) -[:PLACED_BY]-> (Order {id: 'O1001'})</p>
+              <p><span class="text-zinc-500">[10:20:03]</span> <span class="text-emerald-400 font-bold">[NEO4J]</span> Executed UNWIND query batch: 1,248 nodes created into bolt://localhost:7687</p>
+              <p><span class="text-zinc-500">[10:20:04]</span> <span class="text-zinc-400 font-bold">[RAG_INDEX]</span> HNSW Vector embeddings generated for 1,248 graph nodes</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- View 4: Graph Explorer Page -->
+        <div id="viewGraph" class="view-page hidden space-y-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                <i class="fa-solid fa-project-diagram text-white"></i> Neo4j Knowledge Topology Graph Explorer
+              </h2>
+              <p class="text-xs text-zinc-400 font-mono mt-0.5">Fullscreen Interactive Force-Directed Topology Visualizer</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="px-3.5 py-2 rounded-xl bg-noir-850 text-white font-mono text-xs border border-white/15 hover:bg-noir-800" onclick="resetGraphZoom(event)">
+                <i class="fa-solid fa-compress"></i> Reset View
+              </button>
+              <button class="px-4 py-2 rounded-xl bg-white text-black font-semibold text-xs hover:bg-zinc-200" onclick="openNeo4jModal()">
+                Open Cypher Sandbox
+              </button>
+            </div>
+          </div>
+
+          <div class="glass-card rounded-2xl p-6 min-h-[480px] flex flex-col space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 text-xs font-mono border-b border-white/10 pb-3">
+              <div class="flex items-center gap-2">
+                <span class="text-zinc-400">Filter Nodes:</span>
+                <button onclick="filterGraphNode('Customer', event)" class="px-2.5 py-1 rounded bg-white/10 text-white border border-white/20">Customer</button>
+                <button onclick="filterGraphNode('Order', event)" class="px-2.5 py-1 rounded bg-noir-950 text-zinc-300 border border-white/10 hover:bg-white/10">Order</button>
+                <button onclick="filterGraphNode('Product', event)" class="px-2.5 py-1 rounded bg-noir-950 text-zinc-300 border border-white/10 hover:bg-white/10">Product</button>
+                <button onclick="filterGraphNode('Group', event)" class="px-2.5 py-1 rounded bg-noir-950 text-zinc-300 border border-white/10 hover:bg-white/10">Group</button>
+                <button onclick="filterGraphNode('Row', event)" class="px-2.5 py-1 rounded bg-noir-950 text-zinc-300 border border-white/10 hover:bg-white/10">Row</button>
+              </div>
+              <span class="text-emerald-400 font-bold">✓ Force Simulation Stable</span>
+            </div>
+
+            <div class="relative flex-1 min-h-[360px] bg-noir-950/90 rounded-xl border border-white/10 flex items-center justify-center overflow-hidden">
+              <svg class="w-full h-full absolute inset-0" viewBox="0 0 500 300">
+                <g style="transform-origin: 250px 150px;">
+                  <line opacity="0.6" stroke="#ffffff" stroke-dasharray="3 3" stroke-width="1.8" x1="180" y1="150" x2="320" y2="70"></line>
+                  <text fill="#a1a1aa" font-family="JetBrains Mono" font-size="9" transform="rotate(-30 250 110)" x="250" y="108">PLACED_BY</text>
+
+                  <line opacity="0.5" stroke="#a1a1aa" stroke-dasharray="2 2" stroke-width="1.5" x1="320" y1="70" x2="420" y2="150"></line>
+                  <text fill="#a1a1aa" font-family="JetBrains Mono" font-size="9" transform="rotate(40 370 110)" x="370" y="110">CONTAINS</text>
+
+                  <line opacity="0.5" stroke="#a1a1aa" stroke-dasharray="2 2" stroke-width="1.5" x1="180" y1="150" x2="360" y2="230"></line>
+
+                  <g class="cursor-pointer" onclick="inspectNode('Customer', 1248, 'Demographic records')">
+                    <circle cx="180" cy="150" fill="#0c0d12" r="38" stroke="#ffffff" stroke-width="2.5"></circle>
+                    <text fill="#ffffff" font-family="Inter" font-size="11" font-weight="700" text-anchor="middle" x="180" y="146">Customer</text>
+                    <text fill="#a1a1aa" font-family="JetBrains Mono" font-size="9" text-anchor="middle" x="180" y="160">(1,248)</text>
+                  </g>
+                  <g class="cursor-pointer" onclick="inspectNode('Order', 420, 'Purchasing records')">
+                    <circle cx="320" cy="70" fill="#181a20" r="28" stroke="#d4d4d8" stroke-width="2"></circle>
+                    <text fill="#f4f4f5" font-size="10" font-weight="600" text-anchor="middle" x="320" y="68">Order</text>
+                    <text fill="#a1a1aa" font-family="JetBrains Mono" font-size="8.5" text-anchor="middle" x="320" y="80">(420)</text>
+                  </g>
+                  <g class="cursor-pointer" onclick="inspectNode('Product', 180, 'SKU catalog items')">
+                    <circle cx="420" cy="150" fill="#14161c" r="26" stroke="#a1a1aa" stroke-width="2"></circle>
+                    <text fill="#f4f4f5" font-size="10" font-weight="600" text-anchor="middle" x="420" y="148">Product</text>
+                    <text fill="#71717a" font-family="JetBrains Mono" font-size="8.5" text-anchor="middle" x="420" y="160">(180)</text>
+                  </g>
+                  <g class="cursor-pointer" onclick="inspectNode('Group', 5, 'Department groups')">
+                    <circle cx="360" cy="230" fill="#191c24" r="25" stroke="#d4d4d8" stroke-width="2"></circle>
+                    <text fill="#f4f4f5" font-size="10" font-weight="600" text-anchor="middle" x="360" y="228">Group</text>
+                    <text fill="#a1a1aa" font-family="JetBrains Mono" font-size="8.5" text-anchor="middle" x="360" y="240">(5)</text>
+                  </g>
+                </g>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- View 5: Chatbot (GraphRAG) Page -->
+        <div id="viewChatbot" class="view-page hidden space-y-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                <i class="fa-solid fa-robot text-white"></i> GraphRAG AI Copilot & Cypher Terminal
+              </h2>
+              <p class="text-xs text-zinc-400 font-mono mt-0.5">Natural Language to Cypher Query Studio</p>
+            </div>
+            <button class="px-4 py-2 rounded-xl bg-noir-850 text-white font-mono text-xs border border-white/15 hover:bg-noir-800" onclick="clearChatHistory()">
+              <i class="fa-solid fa-trash-can"></i> Clear Stream
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-8 glass-card rounded-2xl p-6 space-y-4 flex flex-col min-h-[460px]">
+              <div class="flex-1 overflow-y-auto custom-scrollbar space-y-4 p-2 font-sans text-xs">
+                <div class="flex flex-col items-start gap-1 max-w-[95%]">
+                  <div class="flex items-center gap-1.5 mb-1">
+                    <div class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-white text-xs border border-white/20">
+                      <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <span class="text-xs font-mono font-semibold text-zinc-300">DataFlow Copilot</span>
+                  </div>
+                  <div class="bg-noir-850 border border-white/10 rounded-2xl rounded-tl-sm p-4 text-xs text-zinc-200 space-y-3 w-full">
+                    <p>Welcome! I am your GraphRAG Assistant connected to Neo4j. Ask any question about your customer orders, rows, or node relationships.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="pt-3 border-t border-white/10">
+                <form onsubmit="handleChatSubmit(event)" class="relative flex items-center">
+                  <input class="w-full bg-noir-950 text-xs text-white placeholder-zinc-500 rounded-xl pl-4 pr-16 py-3 border border-white/15 focus:border-white focus:outline-none font-sans" placeholder="Ask a question about your data (e.g., 'How many rows in Billing group?')...">
+                  <button type="submit" class="absolute right-2 px-3.5 py-1.5 rounded-lg bg-white text-black font-semibold text-xs shadow hover:bg-zinc-200">Send</button>
+                </form>
+              </div>
+            </div>
+
+            <div class="lg:col-span-4 glass-card rounded-2xl p-6 space-y-4 font-mono text-xs">
+              <h3 class="text-sm font-bold text-white uppercase tracking-wider">Quick Prompts</h3>
+              <div class="space-y-2">
+                <button onclick="sendQuickPrompt('How many rows are in the Billing group?')" class="w-full p-3 rounded-xl bg-noir-950 hover:bg-noir-850 border border-white/10 text-left text-zinc-200 text-xs">
+                  <p class="font-bold text-white">Billing Group Count</p>
+                  <p class="text-[10px] text-zinc-400">MATCH (r:Row {group: 'Billing'})</p>
+                </button>
+                <button onclick="sendQuickPrompt('Show me all customers in Chennai')" class="w-full p-3 rounded-xl bg-noir-950 hover:bg-noir-850 border border-white/10 text-left text-zinc-200 text-xs">
+                  <p class="font-bold text-white">Chennai Customers</p>
+                  <p class="text-[10px] text-zinc-400">MATCH (c:Customer {city: 'Chennai'})</p>
+                </button>
+                <button onclick="sendQuickPrompt('Top 5 orders by value')" class="w-full p-3 rounded-xl bg-noir-950 hover:bg-noir-850 border border-white/10 text-left text-zinc-200 text-xs">
+                  <p class="font-bold text-white">Top 5 Orders</p>
+                  <p class="text-[10px] text-zinc-400">ORDER BY amount DESC LIMIT 5</p>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- View 6: Execution Logs Page -->
+        <div id="viewLogs" class="view-page hidden space-y-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                <i class="fa-solid fa-terminal text-white"></i> Execution Stream Logs & Terminal Audit
+              </h2>
+              <p class="text-xs text-zinc-400 font-mono mt-0.5">Real-time Kafka, ETL, and Cypher Query Log History</p>
+            </div>
+            <button class="px-4 py-2 rounded-xl bg-white text-black font-semibold text-xs hover:bg-zinc-200" onclick="showToast('Log stream exported to logs_2026.log', 'success')">
+              Export Log Stream
+            </button>
+          </div>
+
+          <div class="glass-card rounded-2xl p-6 font-mono text-xs space-y-4">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3">
+              <div class="flex gap-2">
+                <span class="px-2.5 py-1 rounded bg-white/10 text-white font-bold border border-white/20">ALL LOGS</span>
+                <span class="px-2.5 py-1 rounded bg-noir-950 text-emerald-400 border border-white/10">INFO (124)</span>
+                <span class="px-2.5 py-1 rounded bg-noir-950 text-white border border-white/10">CYPHER (42)</span>
+              </div>
+              <span class="text-zinc-400 text-[11px]">Stream: CONNECTED</span>
+            </div>
+
+            <div class="bg-noir-950 p-4 rounded-xl border border-white/10 text-[11px] space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar text-zinc-300">
+              <p><span class="text-zinc-500">[10:12:01.002]</span> <span class="text-white font-bold">[INFO]</span> Kafka Consumer Group initialized (Topic: ingest-stream)</p>
+              <p><span class="text-zinc-500">[10:12:01.450]</span> <span class="text-white font-bold">[INFO]</span> CSV Parser uploaded file: customers_orders.csv (456 KB)</p>
+              <p><span class="text-zinc-500">[10:12:02.110]</span> <span class="text-white font-bold">[INFO]</span> Processing 1,248 dataset records through ETL normalizer...</p>
+              <p><span class="text-zinc-500">[10:12:03.020]</span> <span class="text-white font-bold">[INFO]</span> Neo4j Bolt session established at neo4j+s://bolt:7687</p>
+              <p><span class="text-zinc-500">[10:12:04.912]</span> <span class="text-emerald-400 font-bold">[SUCCESS]</span> 3,842 relationships created: PLACED_BY, INCLUDES, HAS_ROW</p>
+              <p><span class="text-zinc-500">[10:12:05.000]</span> <span class="text-white font-bold">[INFO]</span> GraphRAG Vector index initialized (Embedding model: text-embedding-3-small)</p>
+              <p><span class="text-zinc-500">[10:24:12.809]</span> <span class="text-white font-bold">[QUERY]</span> Cypher executed: MATCH (r:Row {group: 'Billing'}) RETURN count(r) (42ms)</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- View 7: Settings Page -->
+        <div id="viewSettings" class="view-page hidden space-y-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                <i class="fa-solid fa-sliders text-white"></i> System Architecture & Configuration Settings
+              </h2>
+              <p class="text-xs text-zinc-400 font-mono mt-0.5">Manage GraphRAG AI Model, Neo4j Database & Pipeline Options</p>
+            </div>
+            <button class="px-4 py-2 rounded-xl bg-white text-black font-semibold text-xs hover:bg-zinc-200" onclick="saveSettings()">
+              Save All Settings
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 font-mono text-xs">
+            <div class="glass-card rounded-2xl p-6 space-y-4">
+              <h3 class="text-sm font-bold text-white uppercase tracking-wider">GraphRAG AI Engine</h3>
+              <div class="space-y-3">
+                <div>
+                  <label class="text-[10px] text-zinc-400 uppercase">LLM Provider</label>
+                  <select class="w-full bg-noir-950 text-xs text-white p-2.5 rounded-lg border border-white/15 mt-1 font-mono">
+                    <option>GPT-4o + Vector Index (Recommended)</option>
+                    <option>Claude 3.5 Sonnet + Cypher</option>
+                    <option>Local Ollama Llama-3-70B</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-[10px] text-zinc-400 uppercase">Temperature</label>
+                  <input type="range" min="0" max="1" step="0.1" value="0.2" class="w-full mt-1">
+                </div>
+              </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-6 space-y-4">
+              <h3 class="text-sm font-bold text-white uppercase tracking-wider">Neo4j Infrastructure</h3>
+              <div class="space-y-3">
+                <div>
+                  <label class="text-[10px] text-zinc-400 uppercase">Bolt Endpoint URI</label>
+                  <input type="text" value="bolt://localhost:7687" class="w-full bg-noir-950 text-xs text-white p-2.5 rounded-lg border border-white/15 mt-1 font-mono">
+                </div>
+                <div>
+                  <label class="text-[10px] text-zinc-400 uppercase">Active Database</label>
+                  <input type="text" value="neo4j" class="w-full bg-noir-950 text-xs text-white p-2.5 rounded-lg border border-white/15 mt-1 font-mono">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- BEGIN: Live AI Copilot Chatbot (Right Panel) -->
+      <aside class="w-96 flex-shrink-0 bg-noir-900/95 border-l border-white/10 flex flex-col justify-between z-10" data-purpose="ai-copilot-chat">
+        <div class="p-4 border-b border-white/10 flex items-center justify-between bg-noir-950/60">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-b from-white to-zinc-400 flex items-center justify-center text-black text-xs shadow-md shadow-white/10">
+              <i class="fa-solid fa-brain"></i>
+            </div>
+            <div>
+              <h3 class="text-xs font-bold text-white tracking-wide flex items-center gap-1.5">
+                Chat with Your Data
+                <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+              </h3>
+              <p class="text-[10px] text-zinc-400 font-mono">GraphRAG + Cypher Synthesis</p>
+            </div>
+          </div>
+          <button class="text-zinc-400 hover:text-white p-1 rounded hover:bg-white/10 text-xs" title="Clear Chat" onclick="clearChatHistory()">
+            <i class="fa-solid fa-trash-can text-xs"></i>
+          </button>
+        </div>
+
+        <!-- Chat Suggestions Pills -->
+        <div class="px-4 py-2 bg-noir-950/40 border-b border-white/5 flex gap-1.5 overflow-x-auto custom-scrollbar text-[10px] font-mono">
+          <button class="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-zinc-300 whitespace-nowrap border border-white/10 transition-colors" onclick="sendQuickPrompt('How many rows are in the Billing group?')">Billing Count</button>
+          <button class="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-zinc-300 whitespace-nowrap border border-white/10 transition-colors" onclick="sendQuickPrompt('Show me all customers in Chennai')">Chennai Cust</button>
+          <button class="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-zinc-300 whitespace-nowrap border border-white/10 transition-colors" onclick="sendQuickPrompt('Top 5 orders by value')">Top Orders</button>
+          <button class="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-zinc-300 whitespace-nowrap border border-white/10 transition-colors" onclick="sendQuickPrompt('Graph schema details')">Schema Info</button>
+        </div>
+
+        <!-- Chat History Stream -->
+        <div id="chatMessageStream" class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+          <!-- Initial User Message -->
+          <div class="flex flex-col items-end">
+            <div class="bg-gradient-to-b from-white to-zinc-200 text-black text-xs px-3.5 py-2.5 rounded-2xl rounded-tr-sm max-w-[85%] shadow-md shadow-white/5 font-medium leading-relaxed">
+              How many rows are in the Billing group?
+            </div>
+            <span class="text-[9px] font-mono text-zinc-500 mt-1 mr-1">10:24 AM</span>
+          </div>
+
+          <!-- Initial Bot Response -->
+          <div class="flex flex-col items-start gap-1 max-w-[95%]">
+            <div class="flex items-center gap-1.5 mb-1">
+              <div class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-white text-[10px] border border-white/20">
+                <i class="fa-solid fa-robot"></i>
+              </div>
+              <span class="text-[10px] font-mono font-semibold text-zinc-300">DataFlow Copilot</span>
+            </div>
+            <div class="bg-noir-850 border border-white/10 rounded-2xl rounded-tl-sm p-3 text-xs text-zinc-200 space-y-2.5 w-full">
+              <p class="leading-relaxed">There are <span class="font-bold text-white">128 rows</span> where group = 'Billing'.</p>
+              <div class="rounded-lg bg-noir-950 border border-white/10 p-2.5 font-mono text-[11px]">
+                <div class="flex items-center justify-between text-[10px] text-zinc-500 mb-1 border-b border-white/10 pb-1">
+                  <span>Cypher Query</span>
+                  <button class="hover:text-white" onclick="copyCode(this, `MATCH (r:Row {group: 'Billing'}) RETURN count(r)`)"><i class="fa-regular fa-copy"></i></button>
+                </div>
+                <code class="text-white block">MATCH <span class="text-zinc-400">(r:Row {group:</span> <span class="text-zinc-200">'Billing'</span><span class="text-zinc-400">})</span></code>
+                <code class="text-white block">RETURN <span class="text-zinc-300">count(r)</span></code>
+              </div>
+              <div class="rounded-lg bg-noir-950/70 p-2 font-mono text-[10px] text-zinc-400 border border-white/5">
+                <span class="text-zinc-500">Raw Result:</span> <span class="text-white font-medium">{ "count(r)": 128 }</span>
+              </div>
+              <div class="flex items-center justify-between pt-1">
+                <span class="flex items-center gap-1 text-[10px] font-mono text-zinc-200 bg-white/5 px-2 py-0.5 rounded border border-white/15 font-medium">
+                  <i class="fa-solid fa-shield-check text-[10px] text-white"></i> Grounded: true (99.8%)
+                </span>
+                <span class="text-[9px] font-mono text-zinc-500">42ms latency</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Input Field -->
+        <div class="p-3 border-t border-white/10 bg-noir-950/80 space-y-2">
+          <div class="flex items-center justify-between text-[10px] font-mono text-zinc-400 px-1">
+            <span class="flex items-center gap-1">
+              <i class="fa-solid fa-bolt text-white"></i> Model: <strong class="text-white font-semibold">GPT-4o + GraphRAG</strong>
+            </span>
+            <span class="text-white font-medium">Bolt Neo4j Online</span>
+          </div>
+          <form onsubmit="handleChatSubmit(event)" class="relative flex items-center">
+            <input id="chatInputField" class="w-full bg-noir-850/90 text-xs text-white placeholder-zinc-500 rounded-xl pl-3.5 pr-12 py-3 border border-white/15 focus:border-white focus:ring-1 focus:ring-white transition-all shadow-inner font-sans" placeholder="Ask a question about your data..." type="text">
+            <button class="absolute right-1.5 w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center shadow-md shadow-white/10 hover:scale-105 transition-transform" title="Send Message" type="submit">
+              <i class="fa-solid fa-paper-plane text-xs text-black"></i>
+            </button>
+          </form>
+          <p class="text-[10px] text-center text-zinc-500 font-mono">Generates read-only verified Cypher statements</p>
+        </div>
+      </aside>
+      <!-- END: Live AI Copilot Chatbot -->
+    </div>
+    <!-- END: Dashboard & Chat Split Layout -->
+  </div>
+  <!-- END: Main Dashboard Body -->
+
+  <!-- ==================== MODALS & DRAWERS ==================== -->
+
+  <!-- Modal 1: Upload CSV Modal -->
+  <div id="uploadModal" class="fixed inset-0 z-50 hidden modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-noir-900 border border-white/20 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-5">
+      <div class="flex items-center justify-between border-b border-white/10 pb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-white/10 text-white flex items-center justify-center border border-white/20">
+            <i class="fa-solid fa-cloud-arrow-up text-base"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white tracking-tight">Ingest CSV to Graph</h3>
+            <p class="text-xs text-zinc-400 font-mono">Automated Kafka + Neo4j Pipeline</p>
+          </div>
+        </div>
+        <button class="text-zinc-400 hover:text-white p-1 rounded" onclick="closeUploadModal()"><i class="fa-solid fa-xmark text-base"></i></button>
+      </div>
+
+      <!-- Drag & Drop Zone -->
+      <div id="dropZone" class="border-2 border-dashed border-white/20 hover:border-white/50 rounded-xl p-8 text-center cursor-pointer bg-noir-950/60 transition-colors" onclick="document.getElementById('csvFileInput').click()">
+        <input id="csvFileInput" type="file" accept=".csv" class="hidden" onchange="handleFileSelected(event)">
+        <i class="fa-solid fa-file-csv text-3xl text-zinc-400 mb-3"></i>
+        <p class="text-sm font-semibold text-white">Click to upload or drag & drop CSV</p>
+        <p class="text-xs text-zinc-400 mt-1 font-mono">Supports customers, orders, products, log files (.csv up to 50MB)</p>
+      </div>
+
+      <!-- Preset Sample Datasets -->
+      <div>
+        <p class="text-xs font-mono uppercase text-zinc-400 mb-2 tracking-wider">Or Select Preset Sample Dataset:</p>
+        <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+          <button class="p-2.5 rounded-lg bg-noir-850 hover:bg-noir-800 border border-white/10 text-left text-zinc-200 hover:border-white/30 transition-colors flex items-center justify-between" onclick="loadPresetDataset('customers_orders.csv', 1248, '456 KB')">
+            <span>customers_orders.csv</span>
+            <span class="text-[10px] text-zinc-500">1,248 rows</span>
+          </button>
+          <button class="p-2.5 rounded-lg bg-noir-850 hover:bg-noir-800 border border-white/10 text-left text-zinc-200 hover:border-white/30 transition-colors flex items-center justify-between" onclick="loadPresetDataset('sales_transactions_q3.csv', 4820, '1.2 MB')">
+            <span>sales_q3.csv</span>
+            <span class="text-[10px] text-zinc-500">4,820 rows</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-white/10 flex justify-end gap-2 text-xs">
+        <button class="px-4 py-2 rounded-xl bg-noir-850 text-zinc-300 border border-white/15 hover:bg-noir-800" onclick="closeUploadModal()">Cancel</button>
+        <button id="btnStartIngest" class="px-4 py-2 rounded-xl bg-white text-black font-semibold shadow-md shadow-white/10 hover:bg-zinc-200 disabled:opacity-50" onclick="startIngestPipeline()">Start Pipeline ETL</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Node Property Inspector Modal -->
+  <div id="nodeInspectModal" class="fixed inset-0 z-50 hidden modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-noir-900 border border-white/20 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-white"></span>
+          <h3 id="inspectNodeTitle" class="text-sm font-bold text-white tracking-tight font-mono">Node: Customer</h3>
+        </div>
+        <button class="text-zinc-400 hover:text-white p-1" onclick="closeInspectModal()"><i class="fa-solid fa-xmark text-sm"></i></button>
+      </div>
+      <div class="space-y-3 font-mono text-xs">
+        <div class="bg-noir-950 p-3 rounded-xl border border-white/10 space-y-1.5">
+          <p class="text-zinc-400 text-[11px]"><span class="text-zinc-500">Label:</span> <span id="inspectNodeLabel" class="text-white font-bold">Customer</span></p>
+          <p class="text-zinc-400 text-[11px]"><span class="text-zinc-500">Entity Count:</span> <span id="inspectNodeCount" class="text-white font-bold">1,248</span></p>
+          <p class="text-zinc-400 text-[11px]"><span class="text-zinc-500">Indexed Properties:</span> <span class="text-zinc-300">id, name, group, city, total_spent</span></p>
+        </div>
+        <div>
+          <p class="text-[10px] uppercase text-zinc-500 mb-1">Description:</p>
+          <p id="inspectNodeDesc" class="text-zinc-300 font-sans text-xs bg-noir-850 p-2.5 rounded-lg border border-white/5">Entity containing customer demographic records.</p>
+        </div>
+      </div>
+      <div class="pt-2 flex justify-end">
+        <button class="px-3.5 py-1.5 rounded-lg bg-white text-black font-semibold text-xs" onclick="closeInspectModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Execution Logs Modal -->
+  <div id="logsModal" class="fixed inset-0 z-50 hidden modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-noir-900 border border-white/20 rounded-2xl w-full max-w-3xl p-6 shadow-2xl space-y-4 flex flex-col h-[520px]">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-terminal text-white text-sm"></i>
+          <h3 class="text-sm font-bold text-white tracking-tight font-mono">Pipeline Execution Stream Logs</h3>
+        </div>
+        <button class="text-zinc-400 hover:text-white p-1" onclick="closeLogsModal()"><i class="fa-solid fa-xmark text-sm"></i></button>
+      </div>
+      
+      <div id="logStreamContainer" class="flex-1 bg-noir-950 p-4 rounded-xl border border-white/10 font-mono text-[11px] text-zinc-300 overflow-y-auto custom-scrollbar space-y-1.5">
+        <p><span class="text-zinc-500">[10:12:01.002]</span> <span class="text-white font-bold">[INFO]</span> Kafka Consumer Group initialized (Topic: ingest-stream)</p>
+        <p><span class="text-zinc-500">[10:12:01.450]</span> <span class="text-white font-bold">[INFO]</span> CSV Parser uploaded file: customers_orders.csv (456 KB)</p>
+        <p><span class="text-zinc-500">[10:12:02.110]</span> <span class="text-white font-bold">[INFO]</span> Processing 1,248 dataset records through ETL normalizer...</p>
+        <p><span class="text-zinc-500">[10:12:03.020]</span> <span class="text-white font-bold">[INFO]</span> Neo4j Bolt session established at neo4j+s://bolt:7687</p>
+        <p><span class="text-zinc-500">[10:12:04.912]</span> <span class="text-white font-bold">[SUCCESS]</span> 3,842 relationships created: PLACED_BY, INCLUDES, HAS_ROW</p>
+        <p><span class="text-zinc-500">[10:12:05.000]</span> <span class="text-white font-bold">[INFO]</span> GraphRAG Vector index initialized (Embedding model: text-embedding-3-small)</p>
+        <p><span class="text-zinc-500">[10:24:12.809]</span> <span class="text-white font-bold">[QUERY]</span> Cypher executed: MATCH (r:Row {group: 'Billing'}) RETURN count(r) (42ms)</p>
+      </div>
+
+      <div class="pt-2 flex justify-between items-center text-xs font-mono">
+        <span class="text-zinc-500">Live stream connected</span>
+        <button class="px-3.5 py-1.5 rounded-lg bg-noir-850 text-zinc-300 border border-white/15 hover:bg-noir-800" onclick="closeLogsModal()">Close Logs</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Interactive Neo4j Browser Console -->
+  <div id="neo4jModal" class="fixed inset-0 z-50 hidden modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-noir-900 border border-white/20 rounded-2xl w-full max-w-2xl p-6 shadow-2xl space-y-4 flex flex-col max-h-[90vh]">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-white/10 text-white flex items-center justify-center border border-white/20">
+            <i class="fa-solid fa-database text-xs"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white tracking-tight font-mono">Neo4j Browser Console</h3>
+            <p class="text-[10px] text-zinc-400 font-mono flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              bolt://localhost:7687 • Enterprise v5.18.0
+            </p>
+          </div>
+        </div>
+        <button class="text-zinc-400 hover:text-white p-1 rounded hover:bg-white/10" onclick="closeNeo4jModal()"><i class="fa-solid fa-xmark text-sm"></i></button>
+      </div>
+
+      <!-- Cypher Sandbox -->
+      <div class="space-y-3 font-mono text-xs">
+        <div class="bg-noir-950 p-3.5 rounded-xl border border-white/10 space-y-2">
+          <div class="flex items-center justify-between text-[11px] text-zinc-400">
+            <label class="font-semibold text-white">Cypher Terminal Query:</label>
+            <span class="text-[10px] text-zinc-500">Read-Only Session</span>
+          </div>
+          <textarea id="neo4jCypherInput" rows="3" class="w-full bg-noir-900 text-xs font-mono text-white p-2.5 rounded-lg border border-white/15 focus:border-white focus:ring-1 focus:ring-white focus:outline-none resize-none">MATCH (c:Customer)-[r:PLACED_BY]->(o:Order) RETURN c.name, o.id, o.amount LIMIT 20;</textarea>
+          <div class="flex justify-between items-center pt-1">
+            <div class="flex gap-2">
+              <button class="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-zinc-300 text-[10px] border border-white/10" onclick="setCypherQuery('MATCH (n) RETURN count(n);')">Count All</button>
+              <button class="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-zinc-300 text-[10px] border border-white/10" onclick="setCypherQuery('MATCH (c:Customer)-[:PLACED_BY]->(o:Order) RETURN c, o LIMIT 10;')">Customer Orders</button>
+            </div>
+            <button class="px-3.5 py-1.5 rounded-lg bg-white text-black font-semibold text-xs hover:bg-zinc-200 flex items-center gap-1.5" onclick="executeNeo4jCypher()">
+              <i class="fa-solid fa-play text-[10px]"></i> Run Cypher
+            </button>
+          </div>
+        </div>
+
+        <!-- Query Output Results -->
+        <div>
+          <p class="text-[10px] uppercase text-zinc-400 mb-1.5 font-semibold">Query Response Stream:</p>
+          <div id="neo4jQueryResult" class="bg-noir-950 p-3 rounded-xl border border-white/10 text-[11px] space-y-1.5 max-h-44 overflow-y-auto custom-scrollbar font-mono text-zinc-300">
+            <p class="text-emerald-400 font-medium">✓ Session connected to bolt://localhost:7687</p>
+            <p class="text-zinc-400">Ready to execute graph queries. Click "Run Cypher" above.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-2 flex justify-end">
+        <button class="px-4 py-1.5 rounded-lg bg-noir-850 text-zinc-300 border border-white/15 hover:bg-noir-800 text-xs font-semibold" onclick="closeNeo4jModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Settings Panel Modal -->
+  <div id="settingsModal" class="fixed inset-0 z-50 hidden modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-noir-900 border border-white/20 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-white text-sm"></i>
+          <h3 class="text-sm font-bold text-white tracking-tight font-mono">Pipeline & AI Settings</h3>
+        </div>
+        <button class="text-zinc-400 hover:text-white p-1" onclick="closeSettingsModal()"><i class="fa-solid fa-xmark text-sm"></i></button>
+      </div>
+
+      <div class="space-y-3 font-mono text-xs text-zinc-300">
+        <div class="bg-noir-950 p-3 rounded-xl border border-white/10 space-y-2">
+          <label class="block text-[11px] font-semibold text-white">GraphRAG AI Model</label>
+          <select id="settingModelSelect" class="w-full bg-noir-900 text-xs text-white p-2 rounded-lg border border-white/15 focus:border-white focus:outline-none font-mono">
+            <option value="gpt-4o">GPT-4o + Neo4j Vector Index (Default)</option>
+            <option value="claude-3-5">Claude 3.5 Sonnet + Cypher</option>
+            <option value="local-llama">Local Llama 3 70B (Ollama)</option>
+          </select>
+        </div>
+
+        <div class="bg-noir-950 p-3 rounded-xl border border-white/10 space-y-2">
+          <label class="block text-[11px] font-semibold text-white">Neo4j Bolt URI Endpoint</label>
+          <input type="text" value="bolt://localhost:7687" class="w-full bg-noir-900 text-xs text-white p-2 rounded-lg border border-white/15 font-mono">
+        </div>
+
+        <div class="bg-noir-950 p-3 rounded-xl border border-white/10 flex items-center justify-between">
+          <span class="text-white font-medium">Auto-Sync Pipeline Interval</span>
+          <select class="bg-noir-900 text-xs text-white p-1.5 rounded border border-white/15 font-mono">
+            <option value="30">Every 30s</option>
+            <option value="60">Every 1m</option>
+            <option value="manual">Manual Only</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="pt-2 flex justify-end gap-2 text-xs">
+        <button class="px-3.5 py-1.5 rounded-lg bg-noir-850 text-zinc-300 border border-white/15 hover:bg-noir-800" onclick="closeSettingsModal()">Cancel</button>
+        <button class="px-4 py-1.5 rounded-lg bg-white text-black font-semibold hover:bg-zinc-200" onclick="saveSettings()">Save Configuration</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Engine -->
+  <script>
+    // Global Application State
+    const appState = {
+      dataset: [
+        { index: 1, cust_id: 'C001', cust_name: 'Arun', order_id: 'O1001', group: 'Billing', status: 'Active' },
+        { index: 2, cust_id: 'C002', cust_name: 'Bala', order_id: 'O1002', group: 'HR', status: 'Active' },
+        { index: 3, cust_id: 'C003', cust_name: 'Kumar', order_id: 'O1003', group: 'Billing', status: 'Active' },
+        { index: 4, cust_id: 'C004', cust_name: 'Meena', order_id: 'O1004', group: 'Finance', status: 'Active' },
+        { index: 5, cust_id: 'C005', cust_name: 'Ravi', order_id: 'O1005', group: 'HR', status: 'Active' },
+        { index: 6, cust_id: 'C006', cust_name: 'Priya', order_id: 'O1006', group: 'Engineering', status: 'Active' },
+        { index: 7, cust_id: 'C007', cust_name: 'Suresh', order_id: 'O1007', group: 'Billing', status: 'Active' },
+        { index: 8, cust_id: 'C008', cust_name: 'Anita', order_id: 'O1008', group: 'Finance', status: 'Active' },
+        { index: 9, cust_id: 'C009', cust_name: 'Karthik', order_id: 'O1009', group: 'Engineering', status: 'Active' },
+        { index: 10, cust_id: 'C010', cust_name: 'Deepa', order_id: 'O1010', group: 'HR', status: 'Active' }
+      ],
+      filteredData: [],
+      currentPage: 1,
+      rowsPerPage: 5,
+      totalRowsCount: 1248,
+      graphNodesCount: 1248,
+      relationshipsCount: 3842,
+      fileName: 'customers_orders.csv',
+      fileSize: '456 KB',
+      graphScale: 1.0,
+      panX: 0,
+      panY: 0,
+      activeNodeFilter: 'ALL'
+    };
+
+    // Multi-Theme Manager
+    const themes = [
+      { id: 'theme-noir', name: 'Midnight Dark Noir', icon: '<i class="fa-solid fa-moon text-xs text-white"></i>' },
+      { id: 'theme-cyber', name: 'Cyber Neon Cyan', icon: '<i class="fa-solid fa-bolt text-xs text-cyan-400"></i>' },
+      { id: 'theme-light', name: 'Obsidian Light Pearl', icon: '<i class="fa-solid fa-sun text-xs text-amber-400"></i>' }
+    ];
+    let currentThemeIndex = 0;
+
+    function toggleThemeMode() {
+      currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+      applyTheme(currentThemeIndex);
+    }
+
+    function applyTheme(index) {
+      const theme = themes[index];
+      document.body.classList.remove('theme-noir', 'theme-cyber', 'theme-light');
+      document.body.classList.add(theme.id);
+      
+      const themeBtn = document.getElementById('themeToggleBtn');
+      if (themeBtn) {
+        themeBtn.innerHTML = theme.icon;
+      }
+      
+      localStorage.setItem('dataflow_theme', index);
+    }
+
+    // Initialize Application
+    document.addEventListener('DOMContentLoaded', () => {
+      appState.filteredData = [...appState.dataset];
+      renderDatasetTable();
+      initGraphInteractivity();
+
+      // Load saved theme from localStorage
+      const savedTheme = localStorage.getItem('dataflow_theme');
+      if (savedTheme !== null) {
+        currentThemeIndex = parseInt(savedTheme, 10) || 0;
+      }
+      applyTheme(currentThemeIndex);
+    });
+
+    // Toast Notification System
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `px-4 py-2.5 rounded-xl border text-xs font-mono shadow-2xl flex items-center gap-2 transform transition-all duration-300 pointer-events-auto ${
+        type === 'success' ? 'bg-noir-900 text-white border-white/30' : 'bg-noir-900 text-zinc-300 border-white/15'
+      }`;
+      toast.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-circle-check text-white' : 'fa-circle-info text-zinc-400'}"></i> ${message}`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // Dataset Table Management & Filtering
+    function handleTableFilter() {
+      const searchVal = document.getElementById('tableSearchInput').value.toLowerCase();
+      const groupVal = document.getElementById('groupFilterSelect').value;
+
+      appState.filteredData = appState.dataset.filter(item => {
+        const matchesSearch = 
+          item.cust_id.toLowerCase().includes(searchVal) ||
+          item.cust_name.toLowerCase().includes(searchVal) ||
+          item.order_id.toLowerCase().includes(searchVal) ||
+          item.group.toLowerCase().includes(searchVal);
+        
+        const matchesGroup = groupVal === 'ALL' || item.group === groupVal;
+        return matchesSearch && matchesGroup;
+      });
+
+      appState.currentPage = 1;
+      renderDatasetTable();
+    }
+
+    function renderDatasetTable() {
+      const tbody = document.getElementById('datasetTableBody');
+      tbody.innerHTML = '';
+
+      const startIdx = (appState.currentPage - 1) * appState.rowsPerPage;
+      const pageData = appState.filteredData.slice(startIdx, startIdx + appState.rowsPerPage);
+
+      if (pageData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-zinc-500 font-mono">No matching records found</td></tr>`;
+      } else {
+        pageData.forEach(row => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-white/[0.04] transition-colors group';
+          tr.innerHTML = `
+            <td class="py-2.5 px-3 text-zinc-500">${row.index}</td>
+            <td class="py-2.5 px-3 text-white font-semibold">${row.cust_id}</td>
+            <td class="py-2.5 px-3 font-sans font-medium text-white">${row.cust_name}</td>
+            <td class="py-2.5 px-3 text-zinc-400">${row.order_id}</td>
+            <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded bg-white/5 text-zinc-200 border border-white/15 text-[10px] font-medium">${row.group}</span></td>
+            <td class="py-2.5 px-3 text-right"><span class="w-2 h-2 inline-block rounded-full bg-white shadow-[0_0_6px_#ffffff]"></span></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      // Update Pagination Stats
+      const totalFiltered = appState.filteredData.length;
+      const totalPages = Math.ceil(totalFiltered / appState.rowsPerPage) || 1;
+      document.getElementById('currentPageNum').innerText = appState.currentPage;
+      document.getElementById('tablePaginationInfo').innerText = `Showing ${Math.min(startIdx + 1, totalFiltered)}-${Math.min(startIdx + appState.rowsPerPage, totalFiltered)} of ${appState.totalRowsCount.toLocaleString()} rows`;
+      
+      document.getElementById('btnPrevPage').disabled = appState.currentPage === 1;
+      document.getElementById('btnNextPage').disabled = appState.currentPage >= totalPages;
+    }
+
+    function changePage(delta) {
+      appState.currentPage += delta;
+      renderDatasetTable();
+    }
+
+    // AI Copilot Interactive Chat Engine
+    function handleChatSubmit(e) {
+      e.preventDefault();
+      const input = document.getElementById('chatInputField');
+      const message = input.value.trim();
+      if (!message) return;
+
+      appendUserMessage(message);
+      input.value = '';
+
+      // Generate AI Bot Response with Cypher query simulation
+      setTimeout(() => {
+        generateBotReply(message);
+      }, 500);
+    }
+
+    function sendQuickPrompt(promptText) {
+      appendUserMessage(promptText);
+      setTimeout(() => {
+        generateBotReply(promptText);
+      }, 500);
+    }
+
+    function appendUserMessage(text) {
+      const stream = document.getElementById('chatMessageStream');
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const userDiv = document.createElement('div');
+      userDiv.className = 'flex flex-col items-end';
+      userDiv.innerHTML = `
+        <div class="bg-gradient-to-b from-white to-zinc-200 text-black text-xs px-3.5 py-2.5 rounded-2xl rounded-tr-sm max-w-[85%] shadow-md shadow-white/5 font-medium leading-relaxed">
+          ${escapeHtml(text)}
+        </div>
+        <span class="text-[9px] font-mono text-zinc-500 mt-1 mr-1">${timeStr}</span>
+      `;
+      stream.appendChild(userDiv);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    function generateBotReply(query) {
+      const stream = document.getElementById('chatMessageStream');
+      const lower = query.toLowerCase();
+
+      let answerText = "";
+      let cypherCode = "";
+      let rawResult = "";
+      let tableHtml = "";
+
+      if (lower.includes('billing') || lower.includes('group')) {
+        answerText = `There are <span class="font-bold text-white">128 rows</span> matching group = 'Billing'.`;
+        cypherCode = `MATCH (r:Row {group: 'Billing'})\nRETURN count(r)`;
+        rawResult = `{ "count(r)": 128 }`;
+      } else if (lower.includes('chennai') || lower.includes('customer')) {
+        answerText = `Here are <span class="font-bold text-white">12 customers</span> located in Chennai:`;
+        cypherCode = `MATCH (c:Customer {city: 'Chennai'})\nRETURN c.id, c.name, c.city LIMIT 12`;
+        rawResult = `[ { id: "C001", name: "Arun" }, { id: "C004", name: "Meena" }, { id: "C007", name: "Suresh" } ]`;
+        tableHtml = `
+          <div class="rounded-lg border border-white/10 overflow-hidden bg-noir-950 font-mono text-[11px] my-2">
+            <table class="w-full text-left">
+              <thead class="bg-noir-900 text-zinc-400 text-[10px] border-b border-white/10">
+                <tr><th class="py-1 px-2">cust_id</th><th class="py-1 px-2">name</th><th class="py-1 px-2">city</th></tr>
+              </thead>
+              <tbody class="divide-y divide-white/5 text-zinc-300 text-[10.5px]">
+                <tr><td class="py-1 px-2 text-white font-semibold">C001</td><td class="py-1 px-2 font-sans text-white">Arun</td><td class="py-1 px-2 text-zinc-300">Chennai</td></tr>
+                <tr><td class="py-1 px-2 text-white font-semibold">C004</td><td class="py-1 px-2 font-sans text-white">Meena</td><td class="py-1 px-2 text-zinc-300">Chennai</td></tr>
+                <tr><td class="py-1 px-2 text-white font-semibold">C007</td><td class="py-1 px-2 font-sans text-white">Suresh</td><td class="py-1 px-2 text-zinc-300">Chennai</td></tr>
+              </tbody>
+            </table>
+          </div>
+        `;
+      } else if (lower.includes('order') || lower.includes('top')) {
+        answerText = `Found <span class="font-bold text-white">420 high-value orders</span> in Neo4j graph:`;
+        cypherCode = `MATCH (o:Order)-[:PLACED_BY]->(c:Customer)\nRETURN o.id, o.amount ORDER BY o.amount DESC LIMIT 5`;
+        rawResult = `{ "max_order_val": "$14,280", "count": 420 }`;
+      } else {
+        answerText = `Processed query across <span class="font-bold text-white">${appState.relationshipsCount.toLocaleString()} relationships</span> in graph memory:`;
+        cypherCode = `MATCH (n)-[r]->(m)\nWHERE n.name CONTAINS '${query.substring(0, 10)}'\nRETURN n, type(r), m LIMIT 10`;
+        rawResult = `{ "grounded": true, "matches": 42 }`;
+      }
+
+      const botDiv = document.createElement('div');
+      botDiv.className = 'flex flex-col items-start gap-1 max-w-[95%]';
+      botDiv.innerHTML = `
+        <div class="flex items-center gap-1.5 mb-1">
+          <div class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-white text-[10px] border border-white/20">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <span class="text-[10px] font-mono font-semibold text-zinc-300">DataFlow Copilot</span>
+        </div>
+        <div class="bg-noir-850 border border-white/10 rounded-2xl rounded-tl-sm p-3 text-xs text-zinc-200 space-y-2.5 w-full">
+          <p class="leading-relaxed">${answerText}</p>
+          ${tableHtml}
+          <div class="rounded-lg bg-noir-950 border border-white/10 p-2.5 font-mono text-[11px]">
+            <div class="flex items-center justify-between text-[10px] text-zinc-500 mb-1 border-b border-white/10 pb-1">
+              <span>Cypher Query</span>
+              <button class="hover:text-white" onclick="copyCode(this, \`${cypherCode.replace(/\n/g, ' ')}\`)"><i class="fa-regular fa-copy"></i></button>
+            </div>
+            <code class="text-white block whitespace-pre-wrap">${escapeHtml(cypherCode)}</code>
+          </div>
+          <div class="rounded-lg bg-noir-950/70 p-2 font-mono text-[10px] text-zinc-400 border border-white/5">
+            <span class="text-zinc-500">Raw Result:</span> <span class="text-white font-medium">${rawResult}</span>
+          </div>
+          <div class="flex items-center justify-between pt-1">
+            <span class="flex items-center gap-1 text-[10px] font-mono text-zinc-200 bg-white/5 px-2 py-0.5 rounded border border-white/15 font-medium">
+              <i class="fa-solid fa-shield-check text-[10px] text-white"></i> Grounded: true (99.9%)
+            </span>
+            <span class="text-[9px] font-mono text-zinc-500">38ms latency</span>
+          </div>
+        </div>
+      `;
+      stream.appendChild(botDiv);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    function clearChatHistory() {
+      const stream = document.getElementById('chatMessageStream');
+      stream.innerHTML = `<div class="p-4 text-center text-xs font-mono text-zinc-500">Chat history cleared</div>`;
+      showToast('Chat session cleared', 'info');
+    }
+
+    function copyCode(btn, codeText) {
+      navigator.clipboard.writeText(codeText);
+      showToast('Cypher query copied to clipboard!', 'success');
+    }
+
+    // Interactive Graph Canvas Controls
+    function zoomGraph(factor, event) {
+      if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+      appState.graphScale = Math.min(Math.max(appState.graphScale * factor, 0.4), 3.0);
+      updateGraphTransform();
+    }
+
+    function resetGraphZoom(event) {
+      if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+      appState.graphScale = 1.0;
+      appState.panX = 0;
+      appState.panY = 0;
+      updateGraphTransform();
+    }
+
+    function updateGraphTransform() {
+      const svgGroup = document.getElementById('svgGraphGroup');
+      if (svgGroup) {
+        svgGroup.style.transform = `translate(${appState.panX}px, ${appState.panY}px) scale(${appState.graphScale})`;
+        svgGroup.style.transformOrigin = '200px 130px';
+      }
+      const zoomText = document.getElementById('zoomLevelText');
+      if (zoomText) {
+        zoomText.innerText = `${Math.round(appState.graphScale * 100)}%`;
+      }
+    }
+
+    function filterGraphNode(label, event) {
+      if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+      
+      if (appState.activeNodeFilter === label) {
+        appState.activeNodeFilter = 'ALL';
+      } else {
+        appState.activeNodeFilter = label;
+      }
+
+      const nodes = document.querySelectorAll('#svgGraphGroup .node-element');
+      nodes.forEach(node => {
+        const nodeLabel = node.getAttribute('data-node-label');
+        if (appState.activeNodeFilter === 'ALL' || nodeLabel === appState.activeNodeFilter) {
+          node.style.opacity = '1';
+          node.style.filter = appState.activeNodeFilter !== 'ALL' ? 'drop-shadow(0 0 10px rgba(255,255,255,0.8))' : 'none';
+        } else {
+          node.style.opacity = '0.2';
+          node.style.filter = 'none';
+        }
+      });
+
+      document.querySelectorAll('.legend-btn').forEach(btn => {
+        const btnNode = btn.getAttribute('data-legend-for');
+        if (appState.activeNodeFilter === 'ALL' || btnNode === appState.activeNodeFilter) {
+          btn.classList.add('border-white/40', 'bg-white/10');
+          btn.classList.remove('opacity-40');
+        } else {
+          btn.classList.remove('border-white/40', 'bg-white/10');
+          btn.classList.add('opacity-40');
+        }
+      });
+
+      if (appState.activeNodeFilter !== 'ALL') {
+        showToast(`Highlighting node label: ${appState.activeNodeFilter}`, 'info');
+      } else {
+        showToast('Cleared node label filters', 'info');
+      }
+    }
+
+    function initGraphInteractivity() {
+      const canvas = document.getElementById('interactiveGraphCanvas');
+      const svgGroup = document.getElementById('svgGraphGroup');
+      if (!canvas || !svgGroup) return;
+
+      let isDragging = false;
+      let startX = 0;
+      let startY = 0;
+      let hasMoved = false;
+
+      canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+        appState.graphScale = Math.min(Math.max(appState.graphScale * zoomFactor, 0.4), 3.0);
+        updateGraphTransform();
+      }, { passive: false });
+
+      canvas.addEventListener('mousedown', (e) => {
+        if (e.target.closest('button') || e.target.closest('.pointer-events-auto')) return;
+        isDragging = true;
+        hasMoved = false;
+        startX = e.clientX - appState.panX;
+        startY = e.clientY - appState.panY;
+        canvas.classList.add('cursor-grabbing');
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        if (Math.abs(dx - appState.panX) > 3 || Math.abs(dy - appState.panY) > 3) {
+          hasMoved = true;
+        }
+        appState.panX = dx;
+        appState.panY = dy;
+        updateGraphTransform();
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          canvas.classList.remove('cursor-grabbing');
+        }
+      });
+
+      document.querySelectorAll('#svgGraphGroup .node-element').forEach(nodeEl => {
+        nodeEl.addEventListener('click', (e) => {
+          if (hasMoved) {
+            e.stopPropagation();
+            e.preventDefault();
+          }
+        }, true);
+      });
+    }
+
+    function inspectNode(label, count, desc) {
+      document.getElementById('inspectNodeTitle').innerText = `Node: ${label}`;
+      document.getElementById('inspectNodeLabel').innerText = label;
+      document.getElementById('inspectNodeCount').innerText = count.toLocaleString();
+      document.getElementById('inspectNodeDesc').innerText = desc;
+      document.getElementById('nodeInspectModal').classList.remove('hidden');
+    }
+
+    function closeInspectModal() {
+      document.getElementById('nodeInspectModal').classList.add('hidden');
+    }
+
+    function openNeo4jModal() {
+      document.getElementById('neo4jModal').classList.remove('hidden');
+    }
+
+    function closeNeo4jModal() {
+      document.getElementById('neo4jModal').classList.add('hidden');
+    }
+
+    function setCypherQuery(cypherText) {
+      document.getElementById('neo4jCypherInput').value = cypherText;
+    }
+
+    function executeNeo4jCypher() {
+      const query = document.getElementById('neo4jCypherInput').value;
+      const resultDiv = document.getElementById('neo4jQueryResult');
+      const now = new Date().toLocaleTimeString();
+      
+      resultDiv.innerHTML = `
+        <p class="text-white font-semibold">[${now}] Executing Cypher Statement...</p>
+        <p class="text-zinc-400 font-mono text-[10px] pl-2 border-l border-white/20">${escapeHtml(query)}</p>
+        <div class="mt-2 p-2 rounded bg-noir-900 border border-white/10 text-emerald-400 font-mono text-[10px] space-y-1">
+          <p>✓ Returned 20 records in 14ms (Nodes: 20, Relationships: 18)</p>
+          <p class="text-zinc-300">Memory footprint: 1.2MB • Index scan: OPTIMAL</p>
+        </div>
+      `;
+    }
+
+    function openSettingsModal() {
+      document.getElementById('settingsModal').classList.remove('hidden');
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settingsModal').classList.add('hidden');
+    }
+
+    function saveSettings() {
+      closeSettingsModal();
+      showToast('Pipeline & AI settings saved successfully!', 'success');
+    }
+
+    function setActiveNav(navKey) {
+      const views = {
+        'dashboard': 'viewDashboard',
+        'upload': 'viewUpload',
+        'ingestion': 'viewIngestion',
+        'graph': 'viewGraph',
+        'chatbot': 'viewChatbot',
+        'logs': 'viewLogs',
+        'settings': 'viewSettings'
+      };
+
+      document.querySelectorAll('.view-page').forEach(el => el.classList.add('hidden'));
+      const targetViewId = views[navKey];
+      if (targetViewId) {
+        const targetView = document.getElementById(targetViewId);
+        if (targetView) targetView.classList.remove('hidden');
+      }
+
+      const map = {
+        'dashboard': 'navDashboard',
+        'upload': 'navUpload',
+        'ingestion': 'navIngestion',
+        'graph': 'navGraph',
+        'chatbot': 'navChatbot',
+        'logs': 'navLogs',
+        'settings': 'navSettings'
+      };
+      Object.keys(map).forEach(key => {
+        const el = document.getElementById(map[key]);
+        if (!el) return;
+
+        const existingDot = el.querySelector('.active-dot-indicator');
+        if (existingDot) existingDot.remove();
+
+        const icon = el.querySelector('i');
+        if (key === navKey) {
+          el.className = 'sidebar-nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-white/10 text-white border border-white/20 shadow-sm shadow-white/5 group transition-all cursor-pointer';
+          if (icon && !icon.classList.contains('text-white')) {
+            icon.classList.add('text-white');
+          }
+          if (!el.querySelector('.ml-auto')) {
+            const activeDot = document.createElement('span');
+            activeDot.className = 'active-dot-indicator ml-auto w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_#ffffff]';
+            el.appendChild(activeDot);
+          }
+        } else {
+          el.className = 'sidebar-nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors group cursor-pointer';
+        }
+      });
+    }
+
+    function toggleSidebar() {
+      const sidebar = document.getElementById('mainSidebar');
+      sidebar.classList.toggle('-translate-x-full');
+    }
+
+    function scrollToGraph() {
+      document.getElementById('graphCanvasSection').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function focusChatInput() {
+      document.getElementById('chatInputField').focus();
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>
