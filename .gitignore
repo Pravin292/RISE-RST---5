@@ -6,6 +6,3 @@ node_modules/
 dist/
 .DS_Store
 *.log
-
-# Frontend is maintained separately - not tracked from this branch
-ui/
