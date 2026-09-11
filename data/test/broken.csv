@@ -1,0 +1,6 @@
+name,department,age,salary,city
+Rahul Sharma,Billing,28,65000,Mumbai
+Priya Patel,HR
+Arun Kumar,Billing,invalid_age,58000,Bengaluru,extra_field_1,extra_field_2
+Sneha Reddy,,29,,Hyderabad
+,,,,,
