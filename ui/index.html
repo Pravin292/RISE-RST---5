@@ -1,12 +1,373 @@
 <!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Data In, Answers Out</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<html class="dark h-full" lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>DataFlowAI - CSV to Kafka to Neo4j Pipeline</title>
+  <meta name="description" content="Upload a CSV, watch it stream through Kafka into a Neo4j knowledge graph, and ask grounded questions about it.">
+
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com" rel="preconnect">
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+          colors: {
+            noir: { 950: '#050608', 900: '#0a0c10', 850: '#111318', 800: '#191c22', 700: '#252932', 600: '#353a45' },
+            silver: { 100: '#f4f4f5', 200: '#e4e4e7', 300: '#d4d4d8', 400: '#a1a1aa', 500: '#71717a' }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body class="h-full font-sans antialiased overflow-hidden flex custom-scrollbar selection:bg-white selection:text-black">
+
+  <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Sidebar -->
+  <aside id="mainSidebar" class="w-64 flex-shrink-0 bg-noir-900/95 border-r border-white/10 flex flex-col justify-between z-30 backdrop-blur-2xl transition-all duration-300">
+    <div class="flex flex-col">
+      <div class="p-5 border-b border-white/10 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-b from-white to-zinc-400 text-black shadow-lg shadow-white/10">
+            <i class="fa-solid fa-circle-nodes text-black text-lg"></i>
+            <span class="absolute -bottom-1 -right-1 flex h-3 w-3">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60"></span>
+              <span class="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+            </span>
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5">
+              <h1 class="text-base font-bold tracking-tight text-white">DataFlow<span class="text-zinc-400 font-light">AI</span></h1>
+            </div>
+            <p class="text-[10px] text-zinc-400 font-mono tracking-tight flex items-center gap-1">
+              CSV <span class="text-white">&rarr;</span> Kafka <span class="text-zinc-400">&rarr;</span> Neo4j
+            </p>
+          </div>
+        </div>
+      </div>
+      <nav class="p-3 space-y-1 text-sm font-medium">
+        <a id="navDashboard" class="sidebar-nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors group cursor-pointer" onclick="Nav.set('dashboard')">
+          <i class="fa-solid fa-house-chimney text-sm"></i><span class="font-medium tracking-tight">Dashboard</span>
+        </a>
+        <a id="navUpload" class="sidebar-nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors group cursor-pointer" onclick="Nav.set('upload')">
+          <i class="fa-solid fa-cloud-arrow-up text-sm"></i><span>Upload CSV</span>
+        </a>
+        <a id="navIngestion" class="sidebar-nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors group cursor-pointer" onclick="Nav.set('ingestion')">
+          <i class="fa-solid fa-wave-pulse text-sm"></i><span>Ingestion Status</span>
+        </a>
+        <a id="navGraph" class="sidebar-nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors group cursor-pointer" onclick="Nav.set('graph')">
+          <i class="fa-solid fa-diagram-project text-sm"></i><span>Graph Explorer</span>
+        </a>
+        <a id="navChatbot" class="sidebar-nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors group cursor-pointer" onclick="Nav.set('chatbot')">
+          <i class="fa-solid fa-robot text-sm"></i><span>Chatbot</span>
+        </a>
+        <a id="navLogs" class="sidebar-nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors group cursor-pointer" onclick="Nav.set('logs')">
+          <i class="fa-solid fa-terminal text-sm"></i><span>Activity Log</span>
+        </a>
+        <a id="navSettings" class="sidebar-nav-item flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors group cursor-pointer" onclick="Nav.set('settings')">
+          <i class="fa-solid fa-sliders text-sm"></i><span>System Info</span>
+        </a>
+      </nav>
+    </div>
+    <div class="p-3 border-t border-white/10">
+      <div class="p-3.5 rounded-xl bg-gradient-to-b from-noir-850 to-noir-900 border border-white/10 relative overflow-hidden">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-[10px] font-mono tracking-wider uppercase text-zinc-300 font-semibold flex items-center gap-1.5">
+            <span id="pipelineDot" class="w-1.5 h-1.5 rounded-full bg-zinc-600"></span> Live Pipeline
+          </span>
+        </div>
+        <p class="text-xs text-zinc-300 font-medium leading-relaxed mb-1">Rule-based Cypher chatbot, no LLM at runtime by default.</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden bg-noir-950/70">
+    <header class="h-16 border-b border-white/10 bg-noir-900/70 backdrop-blur-md flex items-center justify-between px-6 z-10 flex-shrink-0">
+      <div class="flex items-center gap-3">
+        <button class="lg:hidden text-zinc-400 hover:text-white p-1 rounded-lg border border-white/10" onclick="document.getElementById('mainSidebar').classList.toggle('-translate-x-full')">
+          <i class="fa-solid fa-bars text-sm"></i>
+        </button>
+        <span class="text-xs font-mono text-zinc-400 bg-noir-850 px-2 py-1 rounded border border-white/10">DATASET</span>
+        <i class="fa-solid fa-chevron-right text-[10px] text-zinc-600"></i>
+        <h2 id="currentDatasetLabel" class="text-sm font-semibold text-white">No dataset uploaded yet</h2>
+      </div>
+      <div class="flex items-center gap-3">
+        <div id="healthBadge" class="hidden sm:flex items-center gap-3 bg-noir-850 border border-white/15 text-zinc-200 text-xs px-3 py-1.5 rounded-full font-mono"></div>
+        <div class="flex items-center gap-1 bg-noir-850 p-1 rounded-xl border border-white/10">
+          <button class="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-colors" title="Switch theme" onclick="Theme.toggle()">
+            <i id="themeIcon" class="fa-solid fa-moon text-xs text-white"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden">
+      <main class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+
+        <!-- Dashboard -->
+        <div id="viewDashboard" class="view-page space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 class="text-2xl font-bold text-white tracking-tight">Data In, Answers Out</h1>
+              <p class="text-xs sm:text-sm text-zinc-400 mt-1">Upload a CSV, let the real pipeline build the graph, then ask questions about it.</p>
+            </div>
+            <button class="flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-semibold shadow-lg shadow-white/10 transition-all" onclick="Nav.set('upload')">
+              <i class="fa-solid fa-file-arrow-up"></i> Ingest New CSV
+            </button>
+          </div>
+
+          <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+              <div class="flex items-start justify-between">
+                <div><p class="text-xs font-mono uppercase tracking-wider text-zinc-400">Total Rows</p>
+                  <h3 id="kpiTotalRows" class="text-2xl font-bold text-white mt-1">-</h3></div>
+                <div class="w-10 h-10 rounded-xl bg-white/5 text-white flex items-center justify-center border border-white/10"><i class="fa-solid fa-table-cells text-base"></i></div>
+              </div>
+              <p id="kpiTotalRowsSub" class="mt-3 text-xs font-mono text-zinc-500">Upload a CSV to begin</p>
+            </div>
+            <div class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+              <div class="flex items-start justify-between">
+                <div><p class="text-xs font-mono uppercase tracking-wider text-zinc-400">Columns</p>
+                  <h3 id="kpiColumns" class="text-2xl font-bold text-white mt-1">-</h3></div>
+                <div class="w-10 h-10 rounded-xl bg-white/5 text-white flex items-center justify-center border border-white/10"><i class="fa-solid fa-shapes text-base"></i></div>
+              </div>
+              <p id="kpiColumnsSub" class="mt-3 text-xs font-mono text-zinc-500 truncate">-</p>
+            </div>
+            <div class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+              <div class="flex items-start justify-between">
+                <div><p class="text-xs font-mono uppercase tracking-wider text-zinc-400">Data Health Score</p>
+                  <h3 id="kpiHealth" class="text-2xl font-bold text-white mt-1">-</h3></div>
+                <div class="w-10 h-10 rounded-xl bg-white/5 text-white flex items-center justify-center border border-white/10"><i class="fa-solid fa-heart-pulse text-base"></i></div>
+              </div>
+              <p class="mt-3 text-xs font-mono text-zinc-500">From real column completeness</p>
+            </div>
+            <div class="glass-card rounded-2xl p-4 flex flex-col justify-between">
+              <div class="flex items-start justify-between">
+                <div><p class="text-xs font-mono uppercase tracking-wider text-zinc-400">Ingestion Status</p>
+                  <h3 id="kpiStatus" class="text-2xl font-bold text-white mt-1">-</h3></div>
+                <div class="w-10 h-10 rounded-xl bg-white/5 text-white flex items-center justify-center border border-white/10"><i class="fa-solid fa-stopwatch text-base"></i></div>
+              </div>
+              <p id="kpiStatusSub" class="mt-3 text-xs font-mono text-zinc-500">-</p>
+            </div>
+          </section>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <section class="lg:col-span-7 glass-card rounded-2xl p-5 flex flex-col">
+              <div class="flex items-center justify-between pb-4 border-b border-white/10">
+                <div class="flex items-center gap-2.5">
+                  <div class="p-2 rounded-xl bg-white/5 text-white border border-white/10"><i class="fa-solid fa-file-lines text-sm"></i></div>
+                  <div>
+                    <h3 id="tableTitle" class="text-sm font-semibold text-white tracking-tight">No file uploaded</h3>
+                    <p id="tableSubtitle" class="text-[11px] text-zinc-400 font-mono">-</p>
+                  </div>
+                </div>
+              </div>
+              <div class="overflow-x-auto custom-scrollbar mt-3 flex-1 min-h-[220px]">
+                <table class="w-full text-left text-xs">
+                  <thead><tr id="previewHeadRow" class="border-b border-white/10 text-zinc-400 font-mono text-[11px]"></tr></thead>
+                  <tbody id="previewBody" class="divide-y divide-white/5 font-mono text-zinc-300">
+                    <tr><td class="py-6 text-zinc-500 text-center" colspan="10">Nothing uploaded yet.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section id="graphCanvasSection" class="lg:col-span-5 glass-card rounded-2xl p-5 flex flex-col relative overflow-hidden">
+              <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                <div class="flex items-center gap-2">
+                  <div class="p-1.5 rounded-lg bg-white/5 text-white border border-white/15"><i class="fa-solid fa-project-diagram text-xs"></i></div>
+                  <h3 class="text-sm font-semibold text-white tracking-tight">Graph View (Neo4j)</h3>
+                </div>
+              </div>
+              <div id="graphCanvasHost" class="relative flex-1 min-h-[260px] bg-noir-950/90 rounded-xl mt-3 border border-white/10 flex items-center justify-center overflow-hidden"></div>
+            </section>
+          </div>
+
+          <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="glass-card rounded-xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2"><i class="fa-solid fa-heart-pulse text-white text-xs"></i>
+                  <h4 class="text-xs font-semibold text-white uppercase tracking-wider font-mono">System Health</h4></div>
+              </div>
+              <div id="healthDetailBlock" class="space-y-2 text-xs font-mono text-zinc-300"></div>
+            </div>
+            <div class="glass-card rounded-xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-zinc-300 text-xs"></i>
+                  <h4 class="text-xs font-semibold text-white uppercase tracking-wider font-mono">Recent Activity</h4></div>
+                <a class="text-[10px] font-mono text-zinc-300 hover:text-white hover:underline cursor-pointer" onclick="Nav.set('logs')">View Logs &rarr;</a>
+              </div>
+              <div id="recentActivityMini" class="space-y-2 text-xs font-mono text-zinc-300"></div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Upload -->
+        <div id="viewUpload" class="view-page hidden space-y-6">
+          <div>
+            <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2"><i class="fa-solid fa-cloud-arrow-up text-white"></i> CSV Ingestion</h2>
+            <p class="text-xs text-zinc-400 font-mono mt-0.5">Sent to the API, published row-by-row to Kafka, loaded into Neo4j by the Loader.</p>
+          </div>
+          <div class="glass-card rounded-2xl p-6 space-y-5 max-w-3xl">
+            <div id="dropZone" class="border-2 border-dashed border-white/20 hover:border-white/50 rounded-xl p-10 text-center cursor-pointer bg-noir-950/60 transition-all" onclick="document.getElementById('csvFileInput').click()">
+              <input id="csvFileInput" type="file" accept=".csv" class="hidden" onchange="Upload.onFileSelected(event)">
+              <i class="fa-solid fa-file-csv text-4xl text-white mb-3"></i>
+              <p class="text-sm font-semibold text-white">Drop your CSV file here or click to browse</p>
+              <p class="text-xs text-zinc-400 font-mono mt-1">Any .csv file - handled by the real /ingest endpoint</p>
+            </div>
+            <div id="uploadPreviewWrap" class="hidden space-y-3">
+              <p class="text-xs font-mono text-zinc-400">Selected: <span id="uploadFileName" class="text-white"></span></p>
+              <div class="overflow-x-auto custom-scrollbar max-h-52 border border-white/10 rounded-xl">
+                <table class="w-full text-left text-xs">
+                  <thead><tr id="uploadPreviewHead" class="border-b border-white/10 text-zinc-400 font-mono text-[11px]"></tr></thead>
+                  <tbody id="uploadPreviewBody" class="divide-y divide-white/5 font-mono text-zinc-300"></tbody>
+                </table>
+              </div>
+              <button id="btnStartIngest" class="px-5 py-2.5 rounded-xl bg-white text-black font-bold text-xs shadow-lg hover:bg-zinc-200" onclick="Upload.start()">Start Pipeline</button>
+            </div>
+            <div id="uploadError" class="hidden text-xs font-mono text-red-400 bg-red-500/10 border border-red-500/30 rounded-xl p-3"></div>
+          </div>
+        </div>
+
+        <!-- Ingestion Status -->
+        <div id="viewIngestion" class="view-page hidden space-y-6">
+          <div>
+            <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2"><i class="fa-solid fa-wave-pulse text-white"></i> Live Ingestion Progress</h2>
+            <p class="text-xs text-zinc-400 font-mono mt-0.5">Polls the real GET /status endpoint - counts are live graph queries, never hardcoded.</p>
+          </div>
+          <div class="glass-card rounded-2xl p-6 max-w-3xl space-y-4">
+            <div id="ingestionEmptyState" class="text-xs font-mono text-zinc-500">No dataset uploaded yet.</div>
+            <div id="ingestionDetail" class="hidden space-y-4">
+              <div class="flex items-center justify-between text-xs font-mono">
+                <span id="ingestFilename" class="text-white font-semibold"></span>
+                <span id="ingestStatusBadge" class="px-2 py-0.5 rounded-full border text-[10px] uppercase"></span>
+              </div>
+              <div class="h-2.5 w-full bg-noir-950 rounded-full overflow-hidden border border-white/10">
+                <div id="ingestProgressBar" class="h-full bg-white transition-all" style="width:0%"></div>
+              </div>
+              <div class="grid grid-cols-4 gap-2 text-center font-mono">
+                <div class="bg-noir-950/70 p-2 rounded border border-white/10"><p id="ingestTotal" class="text-sm font-bold text-white">0</p><p class="text-[9px] text-zinc-400">Total</p></div>
+                <div class="bg-noir-950/70 p-2 rounded border border-white/10"><p id="ingestLoaded" class="text-sm font-bold text-white">0</p><p class="text-[9px] text-zinc-400">Loaded</p></div>
+                <div class="bg-noir-950/70 p-2 rounded border border-white/10"><p id="ingestFailed" class="text-sm font-bold text-white">0</p><p class="text-[9px] text-zinc-400">Failed</p></div>
+                <div class="bg-noir-950/70 p-2 rounded border border-white/10"><p id="ingestPct" class="text-sm font-bold text-white">0%</p><p class="text-[9px] text-zinc-400">Complete</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Graph Explorer -->
+        <div id="viewGraph" class="view-page hidden space-y-6">
+          <div>
+            <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2"><i class="fa-solid fa-project-diagram text-white"></i> Neo4j Graph Explorer</h2>
+            <p class="text-xs text-zinc-400 font-mono mt-0.5">Real Dataset/Row nodes sampled straight from GET /graph. Click a node to inspect its actual properties.</p>
+          </div>
+          <div class="glass-card rounded-2xl p-6 min-h-[480px] flex flex-col space-y-4">
+            <div id="graphFullHost" class="relative flex-1 min-h-[400px] bg-noir-950/90 rounded-xl border border-white/10 flex items-center justify-center overflow-hidden"></div>
+          </div>
+        </div>
+
+        <!-- Chatbot -->
+        <div id="viewChatbot" class="view-page hidden space-y-6">
+          <div>
+            <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2"><i class="fa-solid fa-robot text-white"></i> Chat With Your Data</h2>
+            <p class="text-xs text-zinc-400 font-mono mt-0.5">Rule-based question-to-Cypher matching, grounded in Neo4j. No answer is ever invented.</p>
+          </div>
+          <div class="glass-card rounded-2xl p-4 max-w-3xl">
+            <p class="text-xs text-zinc-400 font-mono">Use the chat panel on the right to ask questions - it stays open across every page.</p>
+          </div>
+        </div>
+
+        <!-- Logs -->
+        <div id="viewLogs" class="view-page hidden space-y-6">
+          <div>
+            <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2"><i class="fa-solid fa-terminal text-white"></i> Activity Log</h2>
+            <p class="text-xs text-zinc-400 font-mono mt-0.5">Every action this browser session actually sent to the API - not a simulated log.</p>
+          </div>
+          <div class="glass-card rounded-2xl p-6 font-mono text-xs">
+            <div id="fullActivityLog" class="bg-noir-950 p-4 rounded-xl border border-white/10 space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar text-[11px] text-zinc-300"></div>
+          </div>
+        </div>
+
+        <!-- Settings / System Info -->
+        <div id="viewSettings" class="view-page hidden space-y-6">
+          <div>
+            <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2"><i class="fa-solid fa-sliders text-white"></i> System Info</h2>
+            <p class="text-xs text-zinc-400 font-mono mt-0.5">Real configuration, reported by the API - nothing here is editable from the browser.</p>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 font-mono text-xs">
+            <div class="glass-card rounded-2xl p-6 space-y-3">
+              <h3 class="text-sm font-bold text-white uppercase tracking-wider">Chatbot Engine</h3>
+              <p class="text-zinc-300 leading-relaxed">Deterministic question-to-Cypher template matching against Neo4j. An optional hybrid LLM step (Anthropic API key set server-side) may classify an otherwise-unmatched question into one of the same fixed templates - it never writes Cypher itself and never generates the answer text. Every answer field (<code>answer</code>, <code>cypher</code>, <code>result</code>, <code>grounded</code>) always comes from a real Neo4j query result.</p>
+            </div>
+            <div class="glass-card rounded-2xl p-6 space-y-3">
+              <h3 class="text-sm font-bold text-white uppercase tracking-wider">Live Service Health</h3>
+              <div id="settingsHealthBlock" class="space-y-2"></div>
+            </div>
+          </div>
+        </div>
+
+      </main>
+
+      <!-- Persistent chat panel -->
+      <aside class="w-96 flex-shrink-0 bg-noir-900/95 border-l border-white/10 flex flex-col justify-between z-10" data-purpose="ai-copilot-chat">
+        <div class="p-4 border-b border-white/10 flex items-center justify-between bg-noir-950/60">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-xl bg-gradient-to-b from-white to-zinc-400 flex items-center justify-center text-black text-xs shadow-md shadow-white/10"><i class="fa-solid fa-brain"></i></div>
+            <div>
+              <h3 class="text-xs font-bold text-white tracking-wide">Chat with Your Data</h3>
+              <p class="text-[10px] text-zinc-400 font-mono">Rule-based, grounded in Neo4j</p>
+            </div>
+          </div>
+          <button class="text-zinc-400 hover:text-white p-1 rounded hover:bg-white/10 text-xs" title="Clear chat" onclick="Chat.clear()"><i class="fa-solid fa-trash-can text-xs"></i></button>
+        </div>
+
+        <div id="suggestionPills" class="px-4 py-2 bg-noir-950/40 border-b border-white/5 flex gap-1.5 overflow-x-auto custom-scrollbar text-[10px] font-mono"></div>
+
+        <div id="chatMessageStream" class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+          <div class="flex flex-col items-start gap-1 max-w-[95%]">
+            <div class="flex items-center gap-1.5 mb-1">
+              <div class="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-white text-[10px] border border-white/20"><i class="fa-solid fa-robot"></i></div>
+              <span class="text-[10px] font-mono font-semibold text-zinc-300">DataFlow Copilot</span>
+            </div>
+            <div class="bg-noir-850 border border-white/10 rounded-2xl rounded-tl-sm p-3 text-xs text-zinc-200 w-full">
+              <p class="leading-relaxed">Upload a CSV first, then ask a question about it - every answer is checked against the real data.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-3 border-t border-white/10 bg-noir-950/80 space-y-2">
+          <form onsubmit="Chat.submit(event)" class="relative flex items-center">
+            <input id="chatInputField" class="w-full bg-noir-850/90 text-xs text-white placeholder-zinc-500 rounded-xl pl-3.5 pr-12 py-3 border border-white/15 focus:border-white focus:ring-1 focus:ring-white transition-all font-sans" placeholder="Ask a question about your data..." type="text">
+            <button class="absolute right-1.5 w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center shadow-md shadow-white/10 hover:scale-105 transition-transform" title="Send" type="submit"><i class="fa-solid fa-paper-plane text-xs text-black"></i></button>
+          </form>
+          <p class="text-[10px] text-center text-zinc-500 font-mono">Answers are grounded in Neo4j or honestly refused</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Node inspector modal -->
+  <div id="nodeInspectModal" class="fixed inset-0 z-50 hidden modal-backdrop flex items-center justify-center p-4">
+    <div class="bg-noir-900 border border-white/20 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-white/10 pb-3">
+        <h3 id="inspectNodeTitle" class="text-sm font-bold text-white tracking-tight font-mono">Node</h3>
+        <button class="text-zinc-400 hover:text-white p-1" onclick="Graph.closeInspect()"><i class="fa-solid fa-xmark text-sm"></i></button>
+      </div>
+      <pre id="inspectNodeBody" class="text-xs font-mono text-zinc-300 whitespace-pre-wrap max-h-80 overflow-y-auto custom-scrollbar"></pre>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
 </html>
