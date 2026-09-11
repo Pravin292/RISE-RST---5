@@ -6,10 +6,17 @@ NO_INFO_ANSWER = "I don't have enough information in the uploaded data to answer
 NO_DATASET_ANSWER = "No dataset has been uploaded yet. I cannot answer this question."
 
 STOPWORDS = {
-    "the", "a", "an", "is", "are", "of", "in", "for", "to", "what", "how",
-    "many", "show", "me", "list", "all", "rows", "records", "entries",
-    "belong", "belongs", "where", "with", "value", "values", "please",
-    "give", "row", "record", "there", "available", "unique",
+    "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+    "of", "in", "on", "at", "by", "from", "to", "into", "as", "that",
+    "which", "who", "whom", "this", "these", "those", "it", "its",
+    "what", "how", "when", "where", "why", "does", "do", "did", "doing",
+    "have", "has", "had", "having", "can", "could", "would", "should",
+    "will", "shall", "may", "might", "must",
+    "many", "much", "show", "me", "my", "list", "all", "any", "rows",
+    "records", "entries", "belong", "belongs", "with", "value", "values",
+    "please", "give", "row", "record", "there", "available", "unique",
+    "and", "or", "not", "no", "yes", "about", "than", "then", "so",
+    "some", "such", "each", "every", "per", "get", "tell", "find",
 }
 
 
@@ -27,11 +34,44 @@ def _find_column(tokens: list[str], columns: list[str]) -> str | None:
     return None
 
 
+def _column_stats(dataset_id: str, col: str) -> dict:
+    rec = neo4j_service.run_read(
+        f"""
+        MATCH (:Dataset {{id: $dataset_id}})-[:HAS_ROW]->(r:Row)
+        WHERE r.`{col}` IS NOT NULL AND r.`{col}` <> ''
+        RETURN count(r) AS total, count(DISTINCT r.`{col}`) AS distinct_count,
+               avg(size(toString(r.`{col}`))) AS avg_len
+        """,
+        dataset_id=dataset_id,
+    )
+    return rec[0] if rec else {"total": 0, "distinct_count": 0, "avg_len": 0}
+
+
+def _is_categorical(stats: dict) -> bool:
+    total = stats.get("total") or 0
+    distinct = stats.get("distinct_count") or 0
+    avg_len = stats.get("avg_len") or 0
+    if total == 0:
+        return False
+    if avg_len and avg_len > 40:
+        return False
+    return distinct <= max(25, total * 0.5)
+
+
 def _find_value(tokens: list[str], columns: list[str], dataset_id: str) -> tuple[str, str] | None:
-    """Try to find (column, value) where a question token matches a distinct value
-    of some column in the dataset."""
+    """Try to find (column, value) where the question refers to a distinct value
+    of some categorical column in the dataset. Free-text columns (long strings,
+    near-unique values like ids or narrative text) are skipped so common English
+    words in the question can't accidentally match inside them."""
     candidates = [t for t in tokens if t not in STOPWORDS and not t.isdigit()]
-    for col in columns:
+    if not candidates:
+        return None
+    phrase = " ".join(candidates)
+
+    categorical_cols = [c for c in columns if _is_categorical(_column_stats(dataset_id, c))]
+
+    value_maps: dict[str, dict[str, str]] = {}
+    for col in categorical_cols:
         rows = neo4j_service.run_read(
             f"""
             MATCH (:Dataset {{id: $dataset_id}})-[:HAS_ROW]->(r:Row) WHERE r.`{col}` IS NOT NULL
@@ -40,12 +80,23 @@ def _find_value(tokens: list[str], columns: list[str], dataset_id: str) -> tuple
             """,
             dataset_id=dataset_id,
         )
-        value_map = {row["v"]: row["orig"] for row in rows}
+        value_maps[col] = {row["v"]: row["orig"] for row in rows}
+
+    # Phase 1: exact match of the full candidate phrase, or any single candidate token.
+    for col in categorical_cols:
+        vmap = value_maps[col]
+        if phrase in vmap:
+            return col, vmap[phrase]
         for cand in candidates:
-            if cand in value_map:
-                return col, value_map[cand]
-            for v, orig in value_map.items():
-                if cand and (cand in v.split() or v in cand):
+            if cand in vmap:
+                return col, vmap[cand]
+
+    # Phase 2: whole-word fuzzy match, categorical columns only.
+    for col in categorical_cols:
+        vmap = value_maps[col]
+        for cand in candidates:
+            for v, orig in vmap.items():
+                if cand in v.split():
                     return col, orig
     return None
 
