@@ -34,8 +34,18 @@ def parse_csv(raw_bytes: bytes, filename: str) -> tuple[list[str], list[dict[str
     if not text.strip():
         raise CSVValidationError("The uploaded CSV contains no data.")
 
-    reader = csv.reader(io.StringIO(text))
-    rows = list(reader)
+    # Real-world CSV exports are often messy: a stray "\r" that isn't part of
+    # a proper "\r\n" line ending (e.g. old Mac-style line endings pasted into
+    # a text field) makes Python's csv module raise "new-line character seen
+    # in unquoted field" and crash the whole upload. Normalize line endings
+    # first so a lone \r can never be mistaken for an embedded newline.
+    text = text.replace("\r\n", "\n").replace("\r", " ")
+
+    try:
+        reader = csv.reader(io.StringIO(text))
+        rows = list(reader)
+    except csv.Error as exc:
+        raise CSVValidationError(f"Please upload a valid CSV file (parse error: {exc}).")
     rows = [r for r in rows if any(cell.strip() for cell in r)]
 
     if not rows:

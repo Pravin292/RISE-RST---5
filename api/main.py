@@ -1,7 +1,8 @@
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from routes import chat, health, ingest, insights, status
 from services.kafka_producer import producer_service
@@ -18,6 +19,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    # Safety net: no endpoint should ever surface a bare, un-JSON crash page.
+    # Any bug we haven't anticipated still comes back as a clean 500 with a
+    # readable message instead of Starlette's plain-text default response.
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Unexpected server error: {exc}"},
+    )
 
 app.include_router(ingest.router)
 app.include_router(status.router)
