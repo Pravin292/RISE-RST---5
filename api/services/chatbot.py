@@ -31,6 +31,15 @@ def _find_column(tokens: list[str], columns: list[str]) -> str | None:
         for variant in col_variants:
             if re.search(rf"\b{re.escape(variant)}\b", joined):
                 return col
+    # Fallback: match against individual parts of an underscore-joined column
+    # name, e.g. a "topic_id" column matches a question that just says "topic".
+    token_set = set(tokens)
+    for col in columns:
+        for part in col.split("_"):
+            if len(part) <= 2:
+                continue
+            if {part, part.rstrip("s"), part + "s"} & token_set:
+                return col
     return None
 
 
@@ -169,7 +178,7 @@ def answer_question(question: str, dataset_id: str | None) -> dict:
             }
 
     # 3. List unique values of a column
-    if re.search(r"\b(unique|distinct|what .* available|list)\b", q):
+    if re.search(r"\b(unique|distinct|what .* available|what .* exist|which .* exist|list)\b", q):
         col = _find_column(tokens, columns)
         if col:
             cypher = f"{base_match} RETURN DISTINCT r.`{col}` AS value ORDER BY value"
@@ -184,49 +193,62 @@ def answer_question(question: str, dataset_id: str | None) -> dict:
                 "grounded": True,
             }
 
-    # 4. Show matching rows for a specific value
-    if re.search(r"\bshow\b", q) or (re.search(r"\brows?\b", q) and _find_value(tokens, columns, dataset_id) and "how many" not in q):
-        match = _find_value(tokens, columns, dataset_id)
-        if match:
-            col, val = match
-            cypher = (
-                f"{base_match} WHERE r.`{col}` = $val RETURN properties(r) AS row LIMIT 10"
-            )
-            result = neo4j_service.run_read(cypher, dataset_id=dataset_id, val=val)
-            if not result:
-                return {"answer": NO_INFO_ANSWER, "cypher": cypher, "result": [], "grounded": False}
-            return {
-                "answer": f"Found {len(result)} row(s) where {col} = '{val}' (showing up to 10).",
-                "cypher": cypher,
-                "result": result,
-                "grounded": True,
-            }
+    is_count_query = re.search(
+        r"\b(how many|count|number of|total number|row count|rows? ?count|total rows)\b", q
+    ) is not None
+    wants_show = re.search(r"\b(show|display|list|give me)\b", q) is not None
 
-    # 5. Count rows matching a value
-    if re.search(r"\bhow many\b", q):
-        match = _find_value(tokens, columns, dataset_id)
-        if match:
-            col, val = match
-            cypher = f"{base_match} WHERE r.`{col}` = $val RETURN count(r) AS count"
-            result = neo4j_service.run_read(cypher, dataset_id=dataset_id, val=val)
-            count = result[0]["count"] if result else 0
-            return {
-                "answer": f"There are {count} rows where {col} = '{val}'.",
-                "cypher": cypher,
-                "result": result,
-                "grounded": True,
-            }
+    value_match = _find_value(tokens, columns, dataset_id)
 
-        # 6. Count all rows
-        if re.search(r"\b(rows?|records?|entries)\b", q):
-            cypher = f"{base_match} RETURN count(r) AS count"
-            result = neo4j_service.run_read(cypher, dataset_id=dataset_id)
-            count = result[0]["count"] if result else 0
-            return {
-                "answer": f"There are {count} rows in total.",
-                "cypher": cypher,
-                "result": result,
-                "grounded": True,
-            }
+    # 4. Show matching rows for a specific value (explicit "show"/"display"/"list ... rows")
+    if value_match and wants_show and not is_count_query:
+        col, val = value_match
+        cypher = f"{base_match} WHERE r.`{col}` = $val RETURN properties(r) AS row LIMIT 10"
+        result = neo4j_service.run_read(cypher, dataset_id=dataset_id, val=val)
+        if not result:
+            return {"answer": NO_INFO_ANSWER, "cypher": cypher, "result": [], "grounded": False}
+        return {
+            "answer": f"Found {len(result)} row(s) where {col} = '{val}' (showing up to 10).",
+            "cypher": cypher,
+            "result": result,
+            "grounded": True,
+        }
+
+    # 5. Count rows matching a value ("how many/count/number of ... <value>", or
+    # a bare value-bearing question like "negative sentiment count")
+    if value_match and (is_count_query or not wants_show):
+        col, val = value_match
+        cypher = f"{base_match} WHERE r.`{col}` = $val RETURN count(r) AS count"
+        result = neo4j_service.run_read(cypher, dataset_id=dataset_id, val=val)
+        count = result[0]["count"] if result else 0
+        return {
+            "answer": f"There are {count} rows where {col} = '{val}'.",
+            "cypher": cypher,
+            "result": result,
+            "grounded": True,
+        }
+
+    # 6. Count all rows ("how many rows", "count rows", "row count", "total rows", ...)
+    if is_count_query:
+        cypher = f"{base_match} RETURN count(r) AS count"
+        result = neo4j_service.run_read(cypher, dataset_id=dataset_id)
+        count = result[0]["count"] if result else 0
+        return {
+            "answer": f"There are {count} rows in total.",
+            "cypher": cypher,
+            "result": result,
+            "grounded": True,
+        }
+
+    # 7. Describe / summarize the dataset
+    if re.search(r"\b(describe|summary|summarize|overview)\b", q):
+        cypher = f"{base_match} RETURN count(r) AS rows"
+        result = neo4j_service.run_read(cypher, dataset_id=dataset_id)
+        rows = result[0]["rows"] if result else 0
+        answer = (
+            f"This dataset has {rows} rows and {len(columns)} columns: "
+            f"{', '.join(columns)}."
+        )
+        return {"answer": answer, "cypher": cypher, "result": result, "grounded": True}
 
     return {"answer": NO_INFO_ANSWER, "cypher": "", "result": [], "grounded": False}
