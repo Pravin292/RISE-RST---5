@@ -364,6 +364,15 @@ def answer_question(question: str, dataset_id: str | None) -> dict:
     known_values = _known_values_for_llm(dataset_id, columns)
     llm_result = llm_intent.classify_intent(question, columns, known_values)
     if llm_result:
+        # Defense in depth: count_all/describe are the only intents that don't
+        # need a real column/value match, so they're the easiest way an
+        # off-topic question ("how are you", "what's the weather") could slip
+        # through if the classifier ever misjudges. Require the question to
+        # actually reference the data in some way before allowing those two.
+        if llm_result["intent"] in ("count_all", "describe"):
+            data_words = r"\b(row|rows|record|records|entry|entries|data|dataset|column|columns|field|fields|table|file|csv)\b"
+            if not re.search(data_words, q):
+                return {"answer": NO_INFO_ANSWER, "cypher": "", "result": [], "grounded": False}
         executed = _execute_llm_intent(llm_result, dataset_id, columns, base_match)
         if executed:
             return executed
