@@ -1,5 +1,6 @@
 import re
 
+from services import llm_intent
 from services.neo4j_service import neo4j_service
 
 NO_INFO_ANSWER = "I don't have enough information in the uploaded data to answer this question."
@@ -107,6 +108,111 @@ def _find_value(tokens: list[str], columns: list[str], dataset_id: str) -> tuple
             for v, orig in vmap.items():
                 if cand in v.split():
                     return col, orig
+    return None
+
+
+def _known_values_for_llm(dataset_id: str, columns: list[str]) -> dict[str, list[str]]:
+    """Real distinct values per categorical column, so the LLM can only ever pick
+    a value that genuinely exists in this dataset (never invent one)."""
+    known: dict[str, list[str]] = {}
+    for col in columns:
+        stats = _column_stats(dataset_id, col)
+        if not _is_categorical(stats):
+            continue
+        rows = neo4j_service.run_read(
+            f"""
+            MATCH (:Dataset {{id: $dataset_id}})-[:HAS_ROW]->(r:Row)
+            WHERE r.`{col}` IS NOT NULL AND r.`{col}` <> ''
+            RETURN DISTINCT r.`{col}` AS v ORDER BY v LIMIT 50
+            """,
+            dataset_id=dataset_id,
+        )
+        known[col] = [row["v"] for row in rows]
+    return known
+
+
+def _execute_llm_intent(intent: dict, dataset_id: str, columns: list[str], base_match: str) -> dict | None:
+    """Run one of the same fixed Cypher templates used by the rule-based matcher,
+    for the intent the LLM selected. The LLM never sees or produces the answer -
+    only the real Neo4j result below becomes the answer."""
+    kind = intent["intent"]
+    col = intent.get("column")
+    val = intent.get("value")
+    func = intent.get("func")
+
+    if kind == "count_all":
+        cypher = f"{base_match} RETURN count(r) AS count"
+        result = neo4j_service.run_read(cypher, dataset_id=dataset_id)
+        count = result[0]["count"] if result else 0
+        return {"answer": f"There are {count} rows in total.", "cypher": cypher, "result": result, "grounded": True}
+
+    if kind == "count_filter" and col and val:
+        cypher = f"{base_match} WHERE r.`{col}` = $val RETURN count(r) AS count"
+        result = neo4j_service.run_read(cypher, dataset_id=dataset_id, val=val)
+        count = result[0]["count"] if result else 0
+        return {
+            "answer": f"There are {count} rows where {col} = '{val}'.",
+            "cypher": cypher, "result": result, "grounded": True,
+        }
+
+    if kind == "show_rows" and col and val:
+        cypher = f"{base_match} WHERE r.`{col}` = $val RETURN properties(r) AS row LIMIT 10"
+        result = neo4j_service.run_read(cypher, dataset_id=dataset_id, val=val)
+        if not result:
+            return {"answer": NO_INFO_ANSWER, "cypher": cypher, "result": [], "grounded": False}
+        return {
+            "answer": f"Found {len(result)} row(s) where {col} = '{val}' (showing up to 10).",
+            "cypher": cypher, "result": result, "grounded": True,
+        }
+
+    if kind == "list_unique" and col:
+        cypher = f"{base_match} RETURN DISTINCT r.`{col}` AS value ORDER BY value"
+        result = neo4j_service.run_read(cypher, dataset_id=dataset_id)
+        values = [str(r["value"]) for r in result if r["value"] not in (None, "")]
+        if not values:
+            return {"answer": NO_INFO_ANSWER, "cypher": cypher, "result": [], "grounded": False}
+        return {
+            "answer": f"The unique values of {col} are: {', '.join(values)}.",
+            "cypher": cypher, "result": result, "grounded": True,
+        }
+
+    if kind == "aggregate" and col and func:
+        cypher = f"{base_match} RETURN {func}(toFloat(r.`{col}`)) AS {func}_{col}"
+        try:
+            result = neo4j_service.run_read(cypher, dataset_id=dataset_id)
+        except Exception:
+            return None
+        value = result[0][f"{func}_{col}"] if result else None
+        if value is None:
+            return {"answer": NO_INFO_ANSWER, "cypher": cypher, "result": [], "grounded": False}
+        verb = "average" if func == "avg" else "sum"
+        return {
+            "answer": f"The {verb} of {col} is {round(value, 2)}.",
+            "cypher": cypher, "result": result, "grounded": True,
+        }
+
+    if kind == "minmax" and col and func:
+        cypher = f"{base_match} RETURN {func}(toFloat(r.`{col}`)) AS {func}_{col}"
+        try:
+            result = neo4j_service.run_read(cypher, dataset_id=dataset_id)
+        except Exception:
+            return None
+        value = result[0][f"{func}_{col}"] if result else None
+        if value is None:
+            return {"answer": NO_INFO_ANSWER, "cypher": cypher, "result": [], "grounded": False}
+        label = "maximum" if func == "max" else "minimum"
+        return {
+            "answer": f"The {label} {col} is {value}.",
+            "cypher": cypher, "result": result, "grounded": True,
+        }
+
+    if kind == "describe":
+        cypher = f"{base_match} RETURN count(r) AS rows"
+        result = neo4j_service.run_read(cypher, dataset_id=dataset_id)
+        rows = result[0]["rows"] if result else 0
+        answer = f"This dataset has {rows} rows and {len(columns)} columns: {', '.join(columns)}."
+        return {"answer": answer, "cypher": cypher, "result": result, "grounded": True}
+
     return None
 
 
@@ -250,5 +356,16 @@ def answer_question(question: str, dataset_id: str | None) -> dict:
             f"{', '.join(columns)}."
         )
         return {"answer": answer, "cypher": cypher, "result": result, "grounded": True}
+
+    # 8. Hybrid LLM fallback: the rule-based matcher above found nothing. Ask the
+    # LLM only to *classify* the question into one of the same fixed templates
+    # (never to answer it) - see services/llm_intent.py. A no-op if no API key
+    # is configured. The real answer still only ever comes from Neo4j below.
+    known_values = _known_values_for_llm(dataset_id, columns)
+    llm_result = llm_intent.classify_intent(question, columns, known_values)
+    if llm_result:
+        executed = _execute_llm_intent(llm_result, dataset_id, columns, base_match)
+        if executed:
+            return executed
 
     return {"answer": NO_INFO_ANSWER, "cypher": "", "result": [], "grounded": False}

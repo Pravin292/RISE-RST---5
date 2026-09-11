@@ -112,6 +112,34 @@ never assume Kafka or Neo4j are ready just because the container started.
   non-root user (`id` inside each container), and no image in
   `docker-compose.yml`/Dockerfiles uses the `latest` tag.
 
+## Hybrid LLM fallback (optional, off by default)
+
+The rule-based matcher (`api/services/chatbot.py`) is still the primary and
+first path for every question, and covers the large majority of phrasings.
+For the remainder, an **optional** LLM fallback (`api/services/llm_intent.py`)
+was added at the professor's direction, with three hard constraints:
+
+1. **It never touches ingestion.** Kafka, the Loader, and Neo4j writes are
+   completely untouched — this only runs inside `/chat`, after the CSV is
+   already sitting in Neo4j.
+2. **It never answers the question or invents data.** The model is given
+   only the dataset's real column names and, for categorical columns, its
+   real distinct values (never row content), and is instructed to return
+   *one* structured JSON object choosing from the same fixed set of
+   templates the rule-based matcher already uses (`count_all`,
+   `count_filter`, `list_unique`, `aggregate`, `minmax`, `show_rows`,
+   `describe`, `unsupported`) — never free text, never Cypher it wrote
+   itself. Any `column`/`value` it returns is re-validated against the
+   dataset's real schema/values before use; anything not present is
+   discarded. The chosen template then runs against Neo4j exactly like the
+   rule-based path, and the returned `answer`/`result`/`grounded` come only
+   from that real query result.
+3. **It's a no-op without an API key.** `ANTHROPIC_API_KEY` in `.env` is
+   blank by default, so out of the box the system is exactly as before —
+   100% rule-based, zero network calls beyond Kafka/Neo4j. Set the key to
+   opt in to the fallback for the handful of phrasings the rule-based
+   matcher can't cover.
+
 ## Known limitations
 
 - The chatbot's value-matching is substring/token based; it will not
